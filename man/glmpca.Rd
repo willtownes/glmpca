@@ -10,33 +10,45 @@ glmpca(Y, L, fam = c("poi", "nb", "mult", "bern"), ctl = list(maxIter =
   X = NULL, Z = NULL, sz = NULL)
 }
 \arguments{
-\item{Y}{matrix of count data with features as rows and observations as columns.}
+\item{Y}{matrix of count data with features as rows and observations as
+columns.}
 
 \item{L}{the desired number of latent dimensions (integer).}
 
-\item{fam}{character describing the likelihood to use for the data 
-(poisson, negative binomial, binomial approximation to multinomial, bernoulli).}
+\item{fam}{character describing the likelihood to use for the data (poisson,
+negative binomial, binomial approximation to multinomial, bernoulli).}
 
 \item{ctl}{a list of control parameters for optimization.}
 
-\item{penalty}{the L2 penalty for the latent factors (default = 1). Regression coefficients are not penalized.}
+\item{penalty}{the L2 penalty for the latent factors (default = 1).
+Regression coefficients are not penalized.}
 
-\item{nb_theta}{see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty = Poisson).}
+\item{verbose}{logical value indicating whether the current deviance should
+be printed after each iteration (default = FALSE).}
 
-\item{X}{a matrix of column (observations) covariates.
-Any column with all same values (eg. 1 for intercept) will be removed.
-This is because we force the intercept and want to avoid collinearity.}
+\item{init}{a list containing initial guesses for the factors (\code{U}) and
+loadings (\code{V}) matrices.}
+
+\item{nb_theta}{see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty
+= Poisson).}
+
+\item{X}{a matrix of column (observations) covariates. Any column with all
+same values (eg. 1 for intercept) will be removed. This is because we force
+the intercept and want to avoid collinearity.}
 
 \item{Z}{a matrix of row (feature) covariates, usually not needed.}
+
+\item{sz}{numeric vector of size factors to use in place of total counts.}
 }
 \value{
-a list containing:
+A list containing:
 }
 \description{
 This function implements the GLM-PCA dimensionality reduction
   method for high-dimensional count data.
 }
 \details{
-The basic model is \code{R = AX'+ZG'+VU'}, where \code{E\[Y\] = M = linkinv(R)}.
-Regression coefficients are \code{A} and \code{G}, latent factors are \code{U} and loadings are \code{V}.
+The basic model is \code{R = AX\'+ZG\'+VU\'}, where \code{E\[Y\] = M
+  = linkinv(R)}. Regression coefficients are \code{A} and \code{G}, latent
+  factors are \code{U} and loadings are \code{V}.
 }

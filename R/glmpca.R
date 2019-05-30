@@ -191,23 +191,33 @@ glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
 #'   method for high-dimensional count data.
 #' @name glmpca
 #' 
-#' @param Y matrix of count data with features as rows and observations as columns.
+#' @param Y matrix of count data with features as rows and observations as
+#'   columns.
 #' @param L the desired number of latent dimensions (integer).
-#' @param fam character describing the likelihood to use for the data 
-#' (poisson, negative binomial, binomial approximation to multinomial, bernoulli).
+#' @param fam character describing the likelihood to use for the data (poisson,
+#'   negative binomial, binomial approximation to multinomial, bernoulli).
 #' @param ctl a list of control parameters for optimization.
-#' @param penalty the L2 penalty for the latent factors (default = 1). Regression coefficients are not penalized.
-#' @param nb_theta see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty = Poisson).
-#' @param X a matrix of column (observations) covariates.
-#' Any column with all same values (eg. 1 for intercept) will be removed.
-#' This is because we force the intercept and want to avoid collinearity.
+#' @param penalty the L2 penalty for the latent factors (default = 1).
+#'   Regression coefficients are not penalized.
+#' @param verbose logical value indicating whether the current deviance should
+#'   be printed after each iteration (default = FALSE).
+#' @param init a list containing initial guesses for the factors (\code{U}) and
+#'   loadings (\code{V}) matrices.
+#' @param nb_theta see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty
+#'   = Poisson).
+#' @param X a matrix of column (observations) covariates. Any column with all
+#'   same values (eg. 1 for intercept) will be removed. This is because we force
+#'   the intercept and want to avoid collinearity.
 #' @param Z a matrix of row (feature) covariates, usually not needed.
+#' @param sz numeric vector of size factors to use in place of total counts.
+#'
+#' @details The basic model is \code{R = AX\'+ZG\'+VU\'}, where \code{E\[Y\] = M
+#'   = linkinv(R)}. Regression coefficients are \code{A} and \code{G}, latent
+#'   factors are \code{U} and loadings are \code{V}.
 #' 
-#' @details The basic model is \code{R = AX'+ZG'+VU'}, where \code{E\[Y\] = M = linkinv(R)}.
-#' Regression coefficients are \code{A} and \code{G}, latent factors are \code{U} and loadings are \code{V}.
+#' @return A list containing:
 #' 
-#' @return a list containing:
-#' 
+#' @import stats
 #' @export
 glmpca<-function(Y, L, fam=c("poi","nb","mult","bern"),
 				 ctl = list(maxIter=1000, eps=1e-4),
