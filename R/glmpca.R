@@ -177,7 +177,7 @@ glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
     if(fam=="mult"){ #offsets incorporated via family object
       a1<-gf$linkfun(rowSums(Y)/sum(mult_n))
     } else { #no offsets (eg, bernoulli)
-      a1<-family$linkfun(rowMeans(Y))
+      a1<-gf$linkfun(rowMeans(Y))
     }
   }
   if(any(is.infinite(a1))){
@@ -201,7 +201,7 @@ glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
 #'   Regression coefficients are not penalized.
 #' @param verbose logical value indicating whether the current deviance should
 #'   be printed after each iteration (default = FALSE).
-#' @param init a list containing initial guesses for the factors (\code{U}) and
+#' @param init a list containing initial estimates for the factors (\code{U}) and
 #'   loadings (\code{V}) matrices.
 #' @param nb_theta see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty
 #'   = Poisson).
@@ -219,7 +219,7 @@ glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
 #' 
 #' @import stats
 #' @export
-glmpca<-function(Y, L, fam=c("poi","nb","mult","bern"),
+glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
 				 ctl = list(maxIter=1000, eps=1e-4),
 				 penalty = 1, verbose = FALSE,
 				 init = list(factors=NULL, loadings=NULL),
@@ -242,8 +242,8 @@ glmpca<-function(Y, L, fam=c("poi","nb","mult","bern"),
   fam<-match.arg(fam)
   N<-ncol(Y); J<-nrow(Y)
   #sanity check inputs
-  if(fam %in% c("poi","nb","mult","bern")){ stopifnot(min(Y)>=0) }
-  if(fam=="bern"){ stopifnot(max(Y)<=1) }
+  if(fam %in% c("poi","nb","mult","bern")){ stopifnot(min(Y) >= 0) }
+  if(fam=="bern"){ stopifnot(max(Y) <= 1) }
   
   #preprocess covariates and set updateable indices
   if(!is.null(X)){ 

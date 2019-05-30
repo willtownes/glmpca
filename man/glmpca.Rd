@@ -26,7 +26,7 @@ Regression coefficients are not penalized.}
 \item{verbose}{logical value indicating whether the current deviance should
 be printed after each iteration (default = FALSE).}
 
-\item{init}{a list containing initial guesses for the factors (\code{U}) and
+\item{init}{a list containing initial estimates for the factors (\code{U}) and
 loadings (\code{V}) matrices.}
 
 \item{nb_theta}{see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty
