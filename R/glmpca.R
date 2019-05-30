@@ -186,7 +186,34 @@ glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
   list(gf=gf,rfunc=rfunc,intercepts=a1)
 }
 
-glmpca<-function(Y,L,fam=c("poi","nb","mult","bern"),ctl=list(maxIter=1000,eps=1e-4),penalty=1,verbose=FALSE,init=list(factors=NULL,loadings=NULL),nb_theta=1,X=NULL,Z=NULL,sz=NULL){
+#' @title GLM-PCA
+#' @description This function implements the GLM-PCA dimensionality reduction
+#'   method for high-dimensional count data.
+#' @name glmpca
+#' 
+#' @param Y matrix of count data with features as rows and observations as columns.
+#' @param L the desired number of latent dimensions (integer).
+#' @param fam character describing the likelihood to use for the data 
+#' (poisson, negative binomial, binomial approximation to multinomial, bernoulli).
+#' @param ctl a list of control parameters for optimization.
+#' @param penalty the L2 penalty for the latent factors (default = 1). Regression coefficients are not penalized.
+#' @param nb_theta see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty = Poisson).
+#' @param X a matrix of column (observations) covariates.
+#' Any column with all same values (eg. 1 for intercept) will be removed.
+#' This is because we force the intercept and want to avoid collinearity.
+#' @param Z a matrix of row (feature) covariates, usually not needed.
+#' 
+#' @details The basic model is \code{R = AX'+ZG'+VU'}, where \code{E\[Y\] = M = linkinv(R)}.
+#' Regression coefficients are \code{A} and \code{G}, latent factors are \code{U} and loadings are \code{V}.
+#' 
+#' @return a list containing:
+#' 
+#' @export
+glmpca<-function(Y, L, fam=c("poi","nb","mult","bern"),
+				 ctl = list(maxIter=1000, eps=1e-4),
+				 penalty = 1, verbose = FALSE,
+				 init = list(factors=NULL, loadings=NULL),
+				 nb_theta = 1, X = NULL, Z = NULL, sz = NULL){
   #Y is data with features=rows, observations=cols
   #L is number of desired latent dimensions
   #fam the likelihood for the data 
