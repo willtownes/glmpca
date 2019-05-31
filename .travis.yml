@@ -3,8 +3,8 @@ language: r
 r_build_args: "--no-build-vignettes"
 r_check_args: "--as-cran --no-vignettes"
 
-install:
-  - R -e 'devtools::install_cran("covr")'
+r_packages:
+  - covr
 
 ## Run code coverage after successful build
 after_success:
