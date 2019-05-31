@@ -1,1 +1,11 @@
 language: r
+
+r_build_args: "--no-build-vignettes"
+r_check_args: "--as-cran --no-build-vignettes --no-vignettes"
+
+install:
+  - R -e 'devtools::install_cran("covr")'
+
+## Run code coverage after successful build
+after_success:
+  - Rscript -e 'covr::codecov()'
