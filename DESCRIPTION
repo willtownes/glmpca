@@ -1,6 +1,6 @@
 Package: glmpca
 Title: Feature Selection and Dimension Reduction based on a Multinomial Model
-Version: 0.0
+Version: 0.1
 Description: This package implements the GLM-PCA method presented in Townes,
     et al., (2019) "Feature Selection and Dimension Reduction for Single 
     Cell RNA-Seq based on a Multinomial Model." This is a more general 
