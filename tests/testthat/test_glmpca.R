@@ -18,6 +18,9 @@ test_that("glmpca works with intended input types", {
 	g1 <- glmpca(Y, L=2, fam = "nb", verbose = TRUE, X = matrix(1:5, ncol=1),
 				 Z = matrix(1:10, ncol=1))
 	g1 <- glmpca(Y, L=2, fam = "mult", sz = 1:5)
+	f0 <- matrix(rnorm(10)/10, ncol=2)
+	l0 <- matrix(rnorm(20)/10, ncol=2)
+	g1 <- glmpca(Y, L=2, init = list(factors = f0, loadings = l0))
 	Y[Y > 0] <- 1
 	g1 <- glmpca(Y, L=2, fam = "bern")
 	
