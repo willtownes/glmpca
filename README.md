@@ -1,5 +1,7 @@
 # R package: glmpca
 
+[![Build Status](https://travis-ci.com/willtownes/glmpca.svg?branch=master)](https://travis-ci.com/willtownes/glmpca)
+
 Feature Selection and Dimension Reduction based on a Multinomial Model.
 
 ## Installation
