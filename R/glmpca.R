@@ -139,18 +139,18 @@ glmpca_family<-function(fam,nb_theta=NULL,mult_n=NULL){
   gf
 }
 
-has_intercept<-function(X){
-  # not used
-  if(all(X[,1]==1)){
-    return(TRUE)
-  }
-  #if 1 vector not first column, check if it is in colspace of X
-  #eg if X is a saturated dummy variable encoding this is satisfied
-  y<-rep(1,nrow(X))
-  #if 1 vector is in colspace of X, the residuals will all be zero
-  resid<-residuals(lm(y~X-1))
-  max(abs(resid))<1e-12
-}
+# has_intercept<-function(X){
+#   # not used
+#   if(all(X[,1]==1)){
+#     return(TRUE)
+#   }
+#   #if 1 vector not first column, check if it is in colspace of X
+#   #eg if X is a saturated dummy variable encoding this is satisfied
+#   y<-rep(1,nrow(X))
+#   #if 1 vector is in colspace of X, the residuals will all be zero
+#   resid<-residuals(lm(y~X-1))
+#   max(abs(resid))<1e-12
+# }
 
 remove_intercept<-function(X){
   X<-t(t(X)-colMeans(X))
