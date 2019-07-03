@@ -3,8 +3,8 @@ language: r
 env:
   - CODECOV_TOKEN="634b2d1e-bd5d-4348-8b8c-f6027dce7171"
 
-r_build_args: "--no-build-vignettes"
-r_check_args: "--as-cran --no-vignettes"
+## r_build_args: "--no-build-vignettes"
+## r_check_args: "--as-cran --no-vignettes"
 
 r_packages:
   - covr
