@@ -1,6 +1,7 @@
 ---
 title: "Applying GLM-PCA to Data"
 author: "Will Townes, Kelly Street"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
