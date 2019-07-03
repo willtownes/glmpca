@@ -6,8 +6,10 @@ Description: This package implements the GLM-PCA method presented in Townes,
     Cell RNA-Seq based on a Multinomial Model." This is a more general 
     implementation of the method, designed to work with many different 
     data types.
-Authors@R: person("F. William", "Townes", email = "will.townes@gmail.com",
-            role = c("aut", "cre"))
+Authors@R: c(person("F. William", "Townes", email = "will.townes@gmail.com",
+            role = c("aut", "cre", "cph")),
+            person("Kelly", "Street", email = "street.kelly@gmail.com", role="aut"),
+            person("Jake", "Yeung", email = "jakeyeung@gmail.com", role="ctb"))
 License: Artistic-2.0
 Depends:
     R (>= 3.6),
