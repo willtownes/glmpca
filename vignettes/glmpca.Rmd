@@ -2,7 +2,11 @@
 title: "Applying GLM-PCA to Data"
 author: "Will Townes, Kelly Street"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
-output: html_document
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteIndexEntry{Title of your vignette}
+  %\usepackage[UTF-8]{inputenc}
 ---
 
 ```{r}
@@ -11,7 +15,7 @@ require(glmpca)
 
 Simulate some data. Thanks to Jake Yeung for providing the [initial code for the simulation](https://github.com/willtownes/scrna2019/issues/2).
 
-```{r}
+```{r, fig.width=5, fig.height=5}
 ngenes <- 10000
 ncells <- 50
 
@@ -39,7 +43,7 @@ plot(Yout$factors, asp = 1, col = colvec, pch = 20, xlab = "GLMPC1 Loadings", yl
 
 analyze the same data with PCA, the batch effect produces incorrect clusters.
 
-```{r}
+```{r, fig.width=5, fig.height=5}
 pca <- prcomp(t(log1p(counts)))
 
 plot(pca$x, asp = 1, col = colvec, pch = 20, xlab = "PC1 Loadings", ylab = "PC2 Loadings", cex = 5, cex.lab = 1.5, cex.main = 1.5, main = "PCA on Observed Space")
