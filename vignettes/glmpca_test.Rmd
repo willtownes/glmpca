@@ -1,25 +1,43 @@
 ---
 title: "GLM-PCA Vignette"
 author: "Will Townes"
-date: "5/23/2019"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
 Simulate from GLM-PCA generative model
 
-```{r}
+```{r, message=FALSE}
 library(tidyverse); theme_set(theme_bw())
-source("./algs/glmpca.R")
-source("./algs/existing.R")
+library(glmpca)
+# helper functions
+rm_zero_rowcol <- function(Y){
+  #remove all rows and columns containing all zeros
+  Y <- Y[rowSums(Y>0)>0, ] #remove rows with zeros all the way across
+  Y <- Y[ ,colSums(Y>0)>0]
+  Y
+}
+pca <- function(Y, L=2, center=TRUE, scale=TRUE, rmzero=TRUE, ret_obj=FALSE){
+  Y <- as.matrix(Y)
+  if(rmzero==TRUE) Y <- rm_zero_rowcol(Y)
+  res <- prcomp(as.matrix(t(Y)), center=center, scale.=scale, rank.=L)
+  factors <- as.data.frame(res$x)
+  colnames(factors) <- paste0("dim", 1:L)
+  if(ret_obj){
+    return(list(factors=factors, obj=res))
+  }else{
+    return(factors)
+  }
+}
 ```
 
 ```{r}
-genCluster<-function(n,id,mu=c(0,0),sigma=diag(2)){
-  d<-data.frame(MASS::mvrnorm(n,mu,sigma))
-  d$id<-id
+genCluster <- function(n, id, mu=c(0,0), sigma=diag(2)){
+  d <- data.frame(MASS::mvrnorm(n,mu,sigma))
+  d$id <- id
   return(d)
 }
-rbeta2<-function(N,mu,phi=max(1/mu,1/(1-mu))+0.1){
+rbeta2 <- function(N, mu, phi=max(1/mu,1/(1-mu))+0.1){
   #return beta distributed variates with a given mean and precision
   #If phi not provided, shape chosen such that there is maximal dispersion for the given mean while still perserving a unimodal distribution
   # large values of phi mean smaller variance (higher precision)
@@ -30,10 +48,10 @@ rbeta2<-function(N,mu,phi=max(1/mu,1/(1-mu))+0.1){
   rbeta(N, phi*mu, phi*(1-mu))
 }
 
-find_thresh<-function(d,max_y=200){
+find_thresh <- function(d, max_y=200){
   #d=N*J (size of matrix)
-  f<-function(s){qnorm(1/d,sd=s)+log(max_y)}
-  uniroot(f,c(.00001,10))$root
+  f <- function(s){qnorm(1/d,sd=s)+log(max_y)}
+  uniroot(f, c(.00001,10))$root
 }
 ```
 
@@ -51,73 +69,75 @@ Increase s_a_batch to 0.8, introduces batch effect that varies across genes. Thi
 #this should be turned into a function
 #some of the parameters are finicky
 #maybe can reparameterize using within- vs between-batch correlations?
-s_v<-2; s_a<-.5; s_a_batch<-0.8
-L<-2; N<-100; J<-500; Jsignal<-100
-nb_theta<-1
+s_v <- 2; s_a <- .5; s_a_batch <- 0.8
+L <- 2; N <- 100; J <- 500; Jsignal <- 100
+nb_theta <- 1
 batch_pzero=c(.8,.95)
 #convert desired batch-specific zero fractions to means
-batch1<-seq(from=1,to=N,by=2)
-batch2<-seq(from=2,to=N,by=2)
-pzero<-rep(NA,N)
-pzero[batch1]<-rbeta2(length(batch1),batch_pzero[1],phi=200)
-pzero[batch2]<-rbeta2(length(batch2),batch_pzero[2],phi=200)
-batch<-factor(rep(c("high_detection","low_detection"),N/2))
+batch1 <- seq(from=1, to=N, by=2)
+batch2 <- seq(from=2, to=N, by=2)
+pzero <- rep(NA,N)
+pzero[batch1] <- rbeta2(length(batch1), batch_pzero[1], phi=200)
+pzero[batch2] <- rbeta2(length(batch2), batch_pzero[2], phi=200)
+batch <- factor(rep(c("high_detection","low_detection"), N/2))
 #for Poisson, pzero=exp(-mu), mu=exp(r), so r=log(-log(pzero))
-offsets<- log(-log(pzero))
+offsets <- log(-log(pzero))
 #for NB, pzero=(phi/(phi+mu))^phi, so r=log(1/log(pzero)-phi)
-#offsets<-log(nb_theta)+log(1/(pzero^(1/nb_theta))-1)
-A<-cbind(rnorm(J,sd=s_a),0)
-if(s_a_batch>0){ A[,2]<-rnorm(J,sd=s_a_batch) }
-X<-model.matrix(~batch)
-X[,2]<-scale(X[,2])
-sigma<-matrix(c(1,0,0,1),nrow=2)
-mu<-list(c(-2.5,2.5),c(2.5,2.5),c(2.5,-2.5),c(-2.5,-2.5))
-dat<-do.call("rbind",lapply(1:4,function(x){genCluster(N/4,x,mu[[x]],sigma)}))
-colnames(dat)[1:2]<-paste0("dim",1:2)
-ref<-data.frame(dat[,1:2],id=as.factor(as.character(dat$id)))
-U<-as.matrix(dat[,1:2])
-V<-matrix(rnorm(Jsignal*L,sd=s_v),ncol=L)
-R<-tcrossprod(V,U)+tcrossprod(A[1:Jsignal,],X)
-R<-(R-mean(R))/sd(R)*find_thresh(N*Jsignal)
+#offsets <- log(nb_theta)+log(1/(pzero^(1/nb_theta))-1)
+A <- cbind(rnorm(J,sd=s_a), 0)
+if(s_a_batch>0){ A[,2] <- rnorm(J, sd=s_a_batch) }
+X <- model.matrix(~batch)
+X[,2] <- scale(X[,2])
+sigma <- matrix(c(1,0,0,1), nrow=2)
+mu <- list(c(-2.5,2.5), c(2.5,2.5), c(2.5,-2.5), c(-2.5,-2.5))
+dat <- do.call("rbind", lapply(1:4, function(x){
+	genCluster(N/4, x, mu[[x]], sigma)
+}))
+colnames(dat)[1:2] <- paste0("dim", 1:2)
+ref <- data.frame(dat[,1:2], id=as.factor(as.character(dat$id)))
+U <- as.matrix(dat[,1:2])
+V <- matrix(rnorm(Jsignal*L,sd=s_v), ncol=L)
+R <- tcrossprod(V,U) + tcrossprod(A[1:Jsignal,], X)
+R <- (R-mean(R)) / sd(R) * find_thresh(N*Jsignal)
 #1.2 is value such that p(x>4.6)=1/20,000
 #ie, that only one gene out of 20,000 will have mean>100
 #hist(R,breaks=100)
-if(Jsignal<J){
-  Rnoise<-tcrossprod(A[Jsignal+1:(J-Jsignal),],X)
-  R<-rbind(R,Rnoise)
+if(Jsignal < J){
+  Rnoise <- tcrossprod(A[Jsignal+1:(J-Jsignal),], X)
+  R <- rbind(R, Rnoise)
 }
-M<-exp(t(t(R)+offsets))
-#Y<-rm_zero_rowcol(matrix(rnbinom(J*N,size=nb_theta,mu=M),nrow=J,ncol=N))
-Y<-rm_zero_rowcol(matrix(rpois(J*N,M),nrow=J,ncol=N))
+M <- exp(t(t(R) + offsets))
+#Y <- rm_zero_rowcol(matrix(rnbinom(J*N,size=nb_theta,mu=M),nrow=J,ncol=N))
+Y <- rm_zero_rowcol(matrix(rpois(J*N,M), nrow=J, ncol=N))
 print(max(Y)) #make sure no unrealistically large values
-pz<-1-colMeans(Y>0)
-plot(pzero,pz,xlab="theoretical zero frac",ylab="empirical zero frac")
+pz <- 1 - colMeans(Y>0)
+plot(pzero, pz, xlab="theoretical zero frac", ylab="empirical zero frac")
 abline(0,1)
 ```
 
 dimension reduction
 
 ```{r}
-L<-2
-pd<-list()
+L <- 2
+pd <- list()
 #PCA on the log2(1+CPM)
-Yl2<-log2(1+t(t(Y)/colSums(Y))*1e6)
-factors<-pca(Yl2,L)
-pd[[1]]<-cbind(factors,method="pca_log")
+Yl2 <- log2(1+t(t(Y) / colSums(Y))*1e6)
+factors <- pca(Yl2, L)
+pd[[1]] <- cbind(factors, method="pca_log")
 #GLM-PCA using batch as covariate
-res<-glmpca(Y,L,X=model.matrix(~batch))
+res <- glmpca(Y, L, X=model.matrix(~batch))
 plot(res$dev,type="l")
-pd[[2]]<-cbind(res$factors,method="glmpca_covar")
+pd[[2]] <- cbind(res$factors, method="glmpca_covar")
 #GLM-PCA with no batch indicators
-res<-glmpca(Y,L,verbose=TRUE)
-plot(res$dev,type="l")
-pd[[3]]<-cbind(res$factors,method="glmpca_naive")
-pd<-do.call(rbind,pd)
-pd$pzero<-1-colMeans(Y>0)
-pd$batch=batch
-pd$clust=ref$id
-ggplot(pd,aes(x=pzero,y=dim1,color=clust,shape=batch))+geom_point(size=3)+facet_wrap(~method,scales="free")
-ggplot(pd,aes(x=dim1,y=dim2,color=clust,shape=batch))+geom_point(size=3)+facet_wrap(~method,scales="free")
+res <- glmpca(Y, L, verbose=TRUE)
+plot(res$dev, type="l")
+pd[[3]] <- cbind(res$factors, method="glmpca_naive")
+pd <- do.call(rbind, pd)
+pd$pzero <- 1 - colMeans(Y>0)
+pd$batch <- batch
+pd$clust <- ref$id
+ggplot(pd, aes(x=pzero, y=dim1, color=clust, shape=batch)) + geom_point(size=3) + facet_wrap(~method, scales="free")
+ggplot(pd, aes(x=dim1, y=dim2, color=clust, shape=batch)) + geom_point(size=3) + facet_wrap(~method, scales="free")
 pd %>% group_by(method) %>% summarise(pzcor=abs(cor(dim1,pzero)))
 ```
 
