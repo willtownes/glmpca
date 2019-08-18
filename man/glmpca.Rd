@@ -6,7 +6,7 @@
 \usage{
 glmpca(Y, L, fam = c("poi", "nb", "mult", "bern"), ctl = list(maxIter =
   1000, eps = 1e-04), penalty = 1, verbose = FALSE,
-  init = list(factors = NULL, loadings = NULL), nb_theta = 1,
+  init = list(factors = NULL, loadings = NULL), nb_theta = 100,
   X = NULL, Z = NULL, sz = NULL)
 }
 \arguments{

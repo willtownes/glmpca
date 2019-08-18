@@ -103,11 +103,13 @@ glmpca_family<-function(fam,nb_theta=NULL,mult_n=NULL){
       W<-1/vfunc(M)
       list(grad=(Y-M)*W*M, info=W*M^2)
     }
+    gf$nb_theta<-nb_theta
   } else if(fam=="mult"){
     gf$infograd<-function(Y,R){
       Pt<-t(ilfunc(R)) #ilfunc=expit, Pt very small probabilities
       list(grad=Y-t(mult_n*Pt), info=t(mult_n*vfunc(Pt)))
     }
+    gf$mult_n<-mult_n
   } else if(fam=="bern"){
     gf$infograd<-function(Y,R){
       P<-ilfunc(R)
@@ -186,6 +188,30 @@ glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
   list(gf=gf,rfunc=rfunc,intercepts=a1)
 }
 
+est_nb_theta<-function(y,mu,th){
+  #given count data y and predicted means mu>0, and a neg binom theta "th"
+  #use Newton's Method to update theta based on the negative binomial likelihood
+  #note this uses observed rather than expected information
+  #regularization:
+  #let u=log(theta). We use the prior u~N(0,1) as penalty
+  #equivalently we assume theta~lognormal(0,1) so the mode is at 1 (geometric distr)
+  #dtheta/du=e^u=theta
+  #d2theta/du2=theta
+  #dL/dtheta * dtheta/du
+  #n<-length(y)
+  u<-log(th)
+  #dL/dtheta*dtheta/du
+  score<- th*sum(digamma(th+y)-digamma(th)+log(th)+1-log(th+mu)-(y+th)/(mu+th))
+  #d^2L/dtheta^2 * (dtheta/du)^2
+  info1<- -th^2*sum(trigamma(th+mu)-trigamma(th)+1/th-2/(mu+th)+(y+th)/(mu+th)^2)  
+  #dL/dtheta*d^2theta/du^2 = score
+  info<- info1-score
+  #L2 penalty on u=log(th)
+  return(exp(u+(score-u)/(info+1)))
+  #grad<-score-u
+  #exp(u+sign(grad)*min(maxstep,abs(grad)))
+}
+
 #' @title GLM-PCA
 #' @description This function implements the GLM-PCA dimensionality reduction
 #'   method for high-dimensional count data.
@@ -223,7 +249,7 @@ glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
 				 ctl = list(maxIter=1000, eps=1e-4),
 				 penalty = 1, verbose = FALSE,
 				 init = list(factors=NULL, loadings=NULL),
-				 nb_theta = 1, X = NULL, Z = NULL, sz = NULL){
+				 nb_theta = 100, X = NULL, Z = NULL, sz = NULL){
   #Y is data with features=rows, observations=cols
   #L is number of desired latent dimensions
   #fam the likelihood for the data 
@@ -238,7 +264,9 @@ glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
   #Z a matrix of row (feature) covariates, usually not needed
   #the basic model is R=AX'+ZG'+VU', where E[Y]=M=linkinv(R)
   #regression coefficients are A,G, latent factors are U and loadings V.
+  #For negative binomial, convergence only works if starting with nb_theta large
   
+  Y<-as.matrix(Y)
   fam<-match.arg(fam)
   N<-ncol(Y); J<-nrow(Y)
   #sanity check inputs
@@ -272,7 +300,7 @@ glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
   #initialize U,V, with row-specific intercept terms
   U<-cbind(1, X, matrix(rnorm(N*Ku)*1e-5/Ku,nrow=N))
   if(!is.null(init$factors)){
-    #print("initialize factors")
+    #message("initialize factors")
     L0<-min(L,ncol(init$factors))
     U[,(Ko+Kf)+(1:L0)]<-init$factors[,1:L0,drop=FALSE]
   }
@@ -280,7 +308,7 @@ glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
   V<-cbind(a1, matrix(rnorm(J*(Ko-1))*1e-5/Kv,nrow=J))
   V<-cbind(V, Z, matrix(rnorm(J*L)*1e-5/Kv,nrow=J))
   if(!is.null(init$loadings)){
-    #print("initialize loadings")
+    #message("initialize loadings")
     L0<-min(L,ncol(init$loadings))
     V[,(Ko+Kf)+(1:L0)]<-init$loadings[,1:L0,drop=FALSE]
   }
@@ -290,13 +318,19 @@ glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
   for(t in 1:ctl$maxIter){
     #rmse[t]<-sd(Y-ilfunc(rfunc(U,V)))
     dev[t]<-gf$dev_func(Y,rfunc(U,V))
+    if(!is.finite(dev[t])){
+      stop("Numerical divergence (deviance no longer finite), try increasing the penalty to improve stability of optimization.")
+    }
     if(t>5 && abs(dev[t]-dev[t-1])/(0.1+abs(dev[t-1]))<ctl$eps){
       break
     }
     if(verbose){ 
       dev_format<-format(dev[t],scientific=TRUE,digits=4)
-      print(paste0("Iteration: ",t," | deviance=",dev_format)) 
+      msg<-paste0("Iteration: ",t," | deviance=",dev_format)
+      if(fam=="nb"){ msg<-paste0(msg," | nb_theta: ",signif(nb_theta,3)) }
+      message(msg) 
     }
+    
     #(k %in% lid) ensures no penalty on regression coefficients: 
     for(k in vid){
       ig<- gf$infograd(Y,rfunc(U,V))
@@ -310,8 +344,12 @@ glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
       infos<- crossprod(ig$info, V[,k]^2) + penalty*(k %in% lid) 
       U[,k]<-U[,k]+grads/infos
     }
+    if(fam=="nb"){
+      nb_theta<-est_nb_theta(Y,gf$linkinv(rfunc(U,V)),nb_theta)
+      gf<-glmpca_family(fam,nb_theta)
+    }
   }
-  #postprocessing: include row and columnn labels for regression coefficients
+  #postprocessing: include row and column labels for regression coefficients
   if(is.null(Z)){
     G<-NULL
   } else {
