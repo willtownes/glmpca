@@ -25,3 +25,4 @@ VignetteBuilder: knitr
 LazyData: false
 RoxygenNote: 6.1.1
 BugReports: https://github.com/willtownes/glmpca/issues
+Encoding: UTF-8

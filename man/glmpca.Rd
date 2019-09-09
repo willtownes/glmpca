@@ -42,6 +42,14 @@ the intercept and want to avoid collinearity.}
 }
 \value{
 A list containing:
+\describe{
+  \item{factors}{a matrix \code{U} whose rows match the columns (observations) of \code{Y}. It is analogous to the principal components in PCA. Each column of the factors matrix is a different latent dimension.}
+  \item{loadings}{a matrix \code{V} whose rows match the rows (features/dimensions) of \code{Y}. It is analogous to loadings in PCA. Each column of the loadings matrix is a different latent dimension.}
+  \item{coefX}{a matrix \code{A} of coefficients for the observation-specific covariates matrix \code{X}. Each row of coefX corresponds to a row of \code{Y} and each column corresponds to a column of \code{X}. The first column of coefX contains feature-specific intercepts which are included by default.}
+  \item{coefZ}{a matrix \code{G} of coefficients for the feature-specific covariates matrix \code{Z}. Each row of coefZ corresponds to a column of \code{Y} and each column corresponds to a column of \code{Z}. By default no such covariates are included and this is returned as NULL.}
+  \item{dev}{a vector of deviance values. The length of the vector is the number of iterations it took for GLM-PCA's optimizer to converge. The deviance should generally decrease over time. If it fluctuates wildly, this often indicates numerical instability, which can be improved by increasing the \code{penalty} parameter.}
+  \item{family}{an S3 object of class glmpca_family. This is a minor extension to the \link[stats]{family} or \link[MASS]{negative.binomial} object used by functions like \link[stats]{glm} and \link[MASS]{glm.nb}. It is basically a list with various internal functions and parameters needed to optimize the GLM-PCA objective function. For the negative binomial case, it also contains the final estimated value of the dispersion parameter (\code{nb_theta})}.
+}
 }
 \description{
 This function implements the GLM-PCA dimensionality reduction
