@@ -229,17 +229,17 @@ est_nb_theta<-function(y,mu,th){
 #'   be printed after each iteration (default = FALSE).
 #' @param init a list containing initial estimates for the factors (\code{U}) and
 #'   loadings (\code{V}) matrices.
-#' @param nb_theta see \code{\link[MASS]{negative.binomial}} (nb_theta -> infty
-#'   = Poisson).
+#' @param nb_theta see \code{\link[MASS]{negative.binomial}} (\code{nb_theta}->\eqn{\infty}
+#'   equivalent to Poisson).
 #' @param X a matrix of column (observations) covariates. Any column with all
 #'   same values (eg. 1 for intercept) will be removed. This is because we force
 #'   the intercept and want to avoid collinearity.
 #' @param Z a matrix of row (feature) covariates, usually not needed.
 #' @param sz numeric vector of size factors to use in place of total counts.
 #'
-#' @details The basic model is \code{R = AX\'+ZG\'+VU\'}, where \code{E\[Y\] = M
+#' @details The basic model is \eqn{R = AX'+ZG'+VU'}, where \eqn{E[Y] = M
 #'   = linkinv(R)}. Regression coefficients are \code{A} and \code{G}, latent
-#'   factors are \code{U} and loadings are \code{V}.
+#'   factors are \code{U} and loadings are \code{V}. The objective function being optimized is the deviance between \code{Y} and \code{M}, plus an L2 (ridge) \code{penalty} on \code{U} and \code{V}.
 #' 
 #' @return A list containing:
 #' \describe{
@@ -248,8 +248,22 @@ est_nb_theta<-function(y,mu,th){
 #'   \item{coefX}{a matrix \code{A} of coefficients for the observation-specific covariates matrix \code{X}. Each row of coefX corresponds to a row of \code{Y} and each column corresponds to a column of \code{X}. The first column of coefX contains feature-specific intercepts which are included by default.}
 #'   \item{coefZ}{a matrix \code{G} of coefficients for the feature-specific covariates matrix \code{Z}. Each row of coefZ corresponds to a column of \code{Y} and each column corresponds to a column of \code{Z}. By default no such covariates are included and this is returned as NULL.}
 #'   \item{dev}{a vector of deviance values. The length of the vector is the number of iterations it took for GLM-PCA's optimizer to converge. The deviance should generally decrease over time. If it fluctuates wildly, this often indicates numerical instability, which can be improved by increasing the \code{penalty} parameter.}
-#'   \item{family}{an S3 object of class glmpca_family. This is a minor extension to the \link[stats]{family} or \link[MASS]{negative.binomial} object used by functions like \link[stats]{glm} and \link[MASS]{glm.nb}. It is basically a list with various internal functions and parameters needed to optimize the GLM-PCA objective function. For the negative binomial case, it also contains the final estimated value of the dispersion parameter (\code{nb_theta})}.
+#'   \item{family}{an S3 object of class glmpca_family. This is a minor extension to the \link[stats]{family} or \link[MASS]{negative.binomial} object used by functions like \link[stats]{glm} and \link[MASS]{glm.nb}. It is basically a list with various internal functions and parameters needed to optimize the GLM-PCA objective function. For the negative binomial case, it also contains the final estimated value of the dispersion parameter (\code{nb_theta}).}
 #' }
+#' 
+#' @seealso
+#' \code{\link[stats]{prcomp}}, \code{\link[zinbwave]{zinbwave}}
+#' 
+#' @references
+#' Townes FW, Hicks SC, Aryee MJ, and Irizarry RA (2019).
+#' Feature Selection and Dimension Reduction for Single Cell RNA-Seq based on a Multinomial Model.
+#' \emph{biorXiv}
+#' \url{https://www.biorxiv.org/content/10.1101/574574v1}
+#' 
+#' Townes FW (2019).
+#' Generalized Principal Component Analysis.
+#' \emph{arXiv}
+#' \url{https://arxiv.org/abs/1907.02647}
 #' 
 #' @import stats
 #' @export
