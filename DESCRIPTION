@@ -19,7 +19,8 @@ Suggests:
     knitr,
     MASS,
     testthat,
-    covr
+    covr,
+    ggplot2
 VignetteBuilder: knitr
 LazyData: false
 RoxygenNote: 6.1.1

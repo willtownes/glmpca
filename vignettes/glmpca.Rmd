@@ -10,41 +10,91 @@ vignette: >
 ---
 
 ```{r}
+library(ggplot2); theme_set(theme_bw())
 require(glmpca)
 ```
 
-Simulate some data. Thanks to Jake Yeung for providing the [initial code for the simulation](https://github.com/willtownes/scrna2019/issues/2).
+## Comparing GLM-PCA to Traditional PCA
 
-```{r, fig.width=5, fig.height=5}
-ngenes <- 10000
-ncells <- 50
+Simulate some data. Thanks to Jake Yeung for providing the [original inspiration for the simulation](https://github.com/willtownes/scrna2019/issues/2). We create three biological groups (clusters) of 50 cells each. There are 5,000 total genes and of these we set 10% to be differentially expressed across clusters. We also create two batches, one with a high total count and the other with a low total count. Each batch has an equal number of cells from the three biological clusters. A successful dimension reduction will recover the three true clusters and avoid separating cells by batch.
 
+```{r}
+set.seed(202)
+ngenes <- 5000 #must be divisible by 10
+ngenes_informative<-ngenes*.1
+ncells <- 50 #number of cells per cluster, must be divisible by 2
+nclust<- 3
 # simulate two batches with different depths
-ncounts <- rpois(ncells*3, lambda = 1000*rep(1:2, each = ncells*3/2))
+batch<-rep(1:2, each = nclust*ncells/2)
+ncounts <- rpois(ncells*nclust, lambda = 1000*batch)
 # generate profiles for 3 clusters
-profiles <- replicate(3, exp(rnorm(n = ngenes)))
+profiles_informative <- replicate(nclust, exp(rnorm(ngenes_informative)))
+profiles_const<-matrix(ncol=nclust,rep(exp(rnorm(ngenes-ngenes_informative)),nclust))
+profiles <- rbind(profiles_informative,profiles_const)
 # generate cluster labels
-cluster <- sample(rep(1:3, each = ncells))
+clust <- sample(rep(1:3, each = ncells))
 # generate single-cell transcriptomes 
-counts <- sapply(seq_along(cluster), function(i){
-	rmultinom(1, ncounts[i], prob = profiles[,cluster[i]])
+counts <- sapply(seq_along(clust), function(i){
+	rmultinom(1, ncounts[i], prob = profiles[,clust[i]])
 })
 rownames(counts) <- paste("gene", seq(nrow(counts)), sep = "_")
 colnames(counts) <- paste("cell", seq(ncol(counts)), sep = "_")
 # clean up rows
-counts <- counts[rowSums(counts) > 0, ]
-
-# run GLM-PCA
-Yout <- glmpca(Y = counts, L=2, fam = "poi", verbose = TRUE) # fam="mult" gives same "ring"
-
-colvec <- c('red3','dodgerblue3','green3')[cluster]
-plot(Yout$factors, asp = 1, col = colvec, pch = 20, xlab = "GLMPC1 Loadings", ylab = "GLMPC2 Loadings", cex = 5, cex.lab = 1.5, cex.main = 1.5, main = "GLMPCA on Observed Space")
+Y <- counts[rowSums(counts) > 0, ]
+sz<-colSums(Y)
+Ycpm<-1e6*t(t(Y)/sz)
+Yl2<-log2(1+Ycpm)
+z<-log10(sz)
+pz<-1-colMeans(Y>0)
+cm<-data.frame(total_counts=sz,zero_frac=pz,clust=factor(clust),batch=factor(batch))
 ```
 
-analyze the same data with PCA, the batch effect produces incorrect clusters.
+Run GLM-PCA on raw counts and standard PCA on log2(1+CPM).
 
-```{r, fig.width=5, fig.height=5}
-pca <- prcomp(t(log1p(counts)))
+```{r, fig.width=6, fig.height=15}
+L<-2 #number of latent dimensions
 
-plot(pca$x, asp = 1, col = colvec, pch = 20, xlab = "PC1 Loadings", ylab = "PC2 Loadings", cex = 5, cex.lab = 1.5, cex.main = 1.5, main = "PCA on Observed Space")
+#Poisson likelihood
+system.time(res1<-glmpca(Y,L,fam="poi",verbose=TRUE)) #about 4 seconds
+pd1<-cbind(cm,res1$factors,dimreduce="glmpca-poi")
+
+#negative binomial likelihood
+system.time(res2<-glmpca(Y,L,fam="nb",verbose=TRUE)) #about 6 seconds
+pd2<-cbind(cm,res2$factors,dimreduce="glmpca-nb")
+
+#standard PCA
+system.time(res3<-prcomp(log2(1+t(Ycpm)),center=TRUE,scale.=TRUE,rank.=L)) #<0.5 sec
+pca_factors<-res3$x
+colnames(pca_factors)<-paste0("dim",1:L)
+pd3<-cbind(cm,pca_factors,dimreduce="pca-logcpm")
+pd<-rbind(pd1,pd2,pd3)
+
+#visualize results
+ggplot(pd,aes(x=dim1,y=dim2,colour=clust,shape=batch))+geom_point(size=4)+facet_wrap(~dimreduce,scales="free",nrow=3)
+```
+
+GLM-PCA identifies the three biological clusters and removes the batch effect. The result is the same whether we use the Poisson or negative binomial likelihood (although the latter is slightly slower). Standard PCA identifies the batch effect as the primary source of variation in the data, even after normalization. Application of a clustering algorithm to the PCA dimension reduction would identify incorrect clusters.
+
+### Examining the GLM-PCA output
+
+The glmpca function returns a list with several components. We will examine more closely the result of the negative binomial GLM-PCA.
+
+* **Y** is the data matrix whose dimension we want to reduce
+* **factors** is a matrix whose rows match the columns (observations) of Y. It is analogous to the principal components. Each column of the factors matrix is a different latent dimension.
+* **loadings** is a matrix whose rows match the rows (features/dimensions) of Y. It is analogous to loadings in PCA. Each column of the loadings matrix is a different latent dimension.
+* **coefX** is a matrix of coefficients for any column-wise (observation-specific) covariates. By default, only an intercept is included. Each row of coefX corresponds to a row of Y and each column corresponds to a different covariate.
+* **coefZ** is a matrix of coefficients for any row-wise (feature-specific) covariates. By default, no such covariates are included and this is returned as NULL.
+* **dev** is a vector of deviance values. The length of the vector is the number of iterations it took for GLM-PCA's optimizer to converge. The deviance should generally decrease over time. If it fluctuates wildly, this often indicates numerical instability, which can be improved by increasing the penalty parameter.
+* **family** is an S3 object of class "glmpca_family". This is a minor extension to the "family" object used by functions like glm and glm.nb. It is basically a list with various internal functions and parameters needed to optimize the GLM-PCA objective function. For the negative binomial case, it also contains the final estimated value of the dispersion parameter.
+
+```{r, fig.width=6, fig.height=4}
+nbres<-res2
+names(nbres) #glmpca returns a list
+dim(Y)
+dim(nbres$factors)
+dim(nbres$loadings)
+dim(nbres$coefX)
+hist(nbres$coefX[,1],breaks=100,main="feature-specific intercepts")
+plot(nbres$dev,type="b",main="trace plot of glmpca optimization",xlab="iteration")
+nbres$family
 ```
