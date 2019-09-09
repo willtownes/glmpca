@@ -72,5 +72,5 @@ Generalized Principal Component Analysis.
 \url{https://arxiv.org/abs/1907.02647}
 }
 \seealso{
-\code{\link[stats]{prcomp}}, \code{\link[zinbwave]{zinbwave}}
+\code{\link[stats]{prcomp}}
 }

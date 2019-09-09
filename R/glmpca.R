@@ -252,7 +252,7 @@ est_nb_theta<-function(y,mu,th){
 #' }
 #' 
 #' @seealso
-#' \code{\link[stats]{prcomp}}, \code{\link[zinbwave]{zinbwave}}
+#' \code{\link[stats]{prcomp}}
 #' 
 #' @references
 #' Townes FW, Hicks SC, Aryee MJ, and Irizarry RA (2019).
