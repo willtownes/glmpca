@@ -11,6 +11,17 @@ Generalized PCA for non-normally distributed data. If you find this useful pleas
 devtools::install_github("willtownes/glmpca")
 ```
 
+## Usage
+
+```r
+library(glmpca)
+res<-glmpca(some_data_matrix_obs_in_cols, 2)
+factors<-res$factors
+plot(factors[,1],factors[,2])
+```
+
+For more details see the vignettes.
+
 ## Issues and bug reports
 
 Please use https://github.com/willtownes/glmpca/issues to submit issues, bug reports, and comments.

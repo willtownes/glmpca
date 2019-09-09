@@ -1,11 +1,9 @@
 Package: glmpca
-Title: Feature Selection and Dimension Reduction based on a Multinomial Model
+Title: Dimension Reduction of Non-normally Distributed Data
 Version: 0.1
-Description: This package implements the GLM-PCA method presented in Townes,
-    et al., (2019) "Feature Selection and Dimension Reduction for Single 
-    Cell RNA-Seq based on a Multinomial Model." This is a more general 
-    implementation of the method, designed to work with many different 
-    data types.
+Description: Implements a generalized version of principal components analysis
+    (GLM-PCA) for dimension reduction of non-normally distributed data such as
+    counts or binary matrices.
 Authors@R: c(person("F. William", "Townes", email = "will.townes@gmail.com",
             role = c("aut", "cre", "cph")),
             person("Kelly", "Street", email = "street.kelly@gmail.com", role="aut"),
