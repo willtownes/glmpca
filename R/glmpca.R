@@ -251,6 +251,18 @@ est_nb_theta<-function(y,mu,th){
 #'   \item{family}{an S3 object of class glmpca_family. This is a minor extension to the \link[stats]{family} or \link[MASS]{negative.binomial} object used by functions like \link[stats]{glm} and \link[MASS]{glm.nb}. It is basically a list with various internal functions and parameters needed to optimize the GLM-PCA objective function. For the negative binomial case, it also contains the final estimated value of the dispersion parameter (\code{nb_theta}).}
 #' }
 #' 
+#' @examples
+#' #create a simple dataset with two clusters
+#' mu<-rep(c(.5,3),each=10)
+#' mu<-matrix(exp(rnorm(100*20)),nrow=100)
+#' mu[,1:10]<-mu[,1:10]*exp(rnorm(100))
+#' clust<-rep(c("red","black"),each=10)
+#' Y<-matrix(rpois(prod(dim(mu)),mu),nrow=nrow(mu))
+#' #visualize the latent structure
+#' res<-glmpca(Y, 2)
+#' factors<-res$factors
+#' plot(factors[,1],factors[,2],col=clust,pch=19)
+#' 
 #' @seealso
 #' \code{\link[stats]{prcomp}}
 #' 

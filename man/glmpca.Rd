@@ -60,6 +60,19 @@ The basic model is \eqn{R = AX'+ZG'+VU'}, where \eqn{E[Y] = M
   = linkinv(R)}. Regression coefficients are \code{A} and \code{G}, latent
   factors are \code{U} and loadings are \code{V}. The objective function being optimized is the deviance between \code{Y} and \code{M}, plus an L2 (ridge) \code{penalty} on \code{U} and \code{V}.
 }
+\examples{
+#create a simple dataset with two clusters
+mu<-rep(c(.5,3),each=10)
+mu<-matrix(exp(rnorm(100*20)),nrow=100)
+mu[,1:10]<-mu[,1:10]*exp(rnorm(100))
+clust<-rep(c("red","black"),each=10)
+Y<-matrix(rpois(prod(dim(mu)),mu),nrow=nrow(mu))
+#visualize the latent structure
+res<-glmpca(Y, 2)
+factors<-res$factors
+plot(factors[,1],factors[,2],col=clust,pch=19)
+
+}
 \references{
 Townes FW, Hicks SC, Aryee MJ, and Irizarry RA (2019).
 Feature Selection and Dimension Reduction for Single Cell RNA-Seq based on a Multinomial Model.
