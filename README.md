@@ -7,6 +7,14 @@ Generalized PCA for non-normally distributed data. If you find this useful pleas
 
 ## Installation
 
+The [glmpca package](https://cran.r-project.org/web/packages/glmpca/index.html) is available from CRAN. To install the stable release (recommended):
+
+```r
+install.packages("glmpca")
+```
+
+To install the development version:
+
 ```r
 devtools::install_github("willtownes/glmpca")
 ```

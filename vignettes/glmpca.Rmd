@@ -9,6 +9,8 @@ vignette: >
   %\usepackage[UTF-8]{inputenc}
 ---
 
+# Applying GLM-PCA to Data
+
 ```{r}
 library(ggplot2); theme_set(theme_bw())
 require(glmpca)
