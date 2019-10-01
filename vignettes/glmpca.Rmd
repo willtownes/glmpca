@@ -5,7 +5,7 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteEngine{knitr::knitr}
-  %\VignetteIndexEntry{Title of your vignette}
+  %\VignetteIndexEntry{Applying GLM-PCA to Data}
   %\usepackage[UTF-8]{inputenc}
 ---
 
