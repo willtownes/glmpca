@@ -10,7 +10,7 @@ Authors@R: c(person("F. William", "Townes", email = "will.townes@gmail.com",
             role = c("aut", "cre", "cph")),
             person("Kelly", "Street", email = "street.kelly@gmail.com", role="aut"),
             person("Jake", "Yeung", email = "jakeyeung@gmail.com", role="ctb"))
-License: Artistic-2.0
+License: LGPL (>= 3) | file LICENSE
 Depends:
     R (>= 3.5),
     stats
