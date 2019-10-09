@@ -41,8 +41,8 @@ ortho<-function(U,V,A,X=rep(1,nrow(U)),G=0,Z=0,ret=c("m","df")){
   factors<-t(t(factors%*%svdres$v)*svdres$d)
   #arrange latent dimensions in decreasing L2 norm
   o<-order(colNorms(factors),decreasing=TRUE)
-  factors<-factors[,o]
-  loadings<-loadings[,o]
+  factors<-factors[,o,drop=FALSE]
+  loadings<-loadings[,o,drop=FALSE]
   colnames(loadings)<-colnames(factors)<-paste0("dim",1:L)
   if(ret=="df"){
     loadings<-as.data.frame(loadings)
@@ -394,7 +394,7 @@ glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
   if(!is.null(colnames(X))){ colnames(X)[1]<-"(Intercept)" }
   A<-V[,1:Ko,drop=FALSE]
   rownames(A)<-rownames(Y); colnames(A)<-colnames(X)
-  res<-ortho(U[,lid],V[,lid],A,X=X,G=G,Z=Z,ret="df")
+  res<-ortho(U[,lid,drop=FALSE],V[,lid,drop=FALSE],A,X=X,G=G,Z=Z,ret="df")
   rownames(res$factors)<-colnames(Y)
   rownames(res$loadings)<-rownames(Y)
   res$dev=dev[1:t]; res$family<-gf

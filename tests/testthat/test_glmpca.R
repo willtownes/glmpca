@@ -32,3 +32,12 @@ test_that("glmpca works with intended input types", {
 	Y[2,] <- 0
 	expect_error(glmpca(Y, L=2, fam = "poi"), "Some rows were all zero,")
 })
+
+
+test_that("glmpca works with L=1", {
+  counts <- matrix(rpois(n=100 * 5, lambda = 5), ncol = 5, nrow=100)
+  res <- glmpca(counts, L=1)
+  expect_equal(dim(res$factors), c(5,1))
+  expect_equal(dim(res$loadings), c(100,1))
+})
+  
