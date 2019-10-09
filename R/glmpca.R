@@ -239,7 +239,7 @@ est_nb_theta<-function(y,mu,th){
 #'
 #' @details The basic model is \eqn{R = AX'+ZG'+VU'}, where \eqn{E[Y] = M
 #'   = linkinv(R)}. Regression coefficients are \code{A} and \code{G}, latent
-#'   factors are \code{U} and loadings are \code{V}. The objective function being optimized is the deviance between \code{Y} and \code{M}, plus an L2 (ridge) \code{penalty} on \code{U} and \code{V}.
+#'   factors are \code{U} and loadings are \code{V}. The objective function being optimized is the deviance between \code{Y} and \code{M}, plus an L2 (ridge) \code{penalty} on \code{U} and \code{V}. Note that glmpca uses a random initialization, so for fully reproducible results one may use \code{set.seed}.
 #' 
 #' @return A list containing:
 #' \describe{
