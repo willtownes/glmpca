@@ -5,6 +5,8 @@
 
 Generalized PCA for non-normally distributed data. If you find this useful please cite [Feature Selection and Dimension Reduction based on a Multinomial Model](https://www.biorxiv.org/content/10.1101/574574v1).
 
+A [python implementation](https://github.com/willtownes/glmpca-py) is also available.
+
 ## Installation
 
 The [glmpca package](https://cran.r-project.org/web/packages/glmpca/index.html) is available from CRAN. To install the stable release (recommended):
