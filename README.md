@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.com/willtownes/glmpca.svg?token=o1x5ZKVR5sA6MpqhDnQX&branch=master)](https://travis-ci.com/willtownes/glmpca)
 [![codecov](https://codecov.io/gh/willtownes/glmpca/branch/master/graph/badge.svg)](https://codecov.io/gh/willtownes/glmpca)
 
-Generalized PCA for non-normally distributed data. If you find this useful please cite [Feature Selection and Dimension Reduction based on a Multinomial Model](https://www.biorxiv.org/content/10.1101/574574v1).
+Generalized PCA for non-normally distributed data. If you find this useful please cite [Feature Selection and Dimension Reduction based on a Multinomial Model.](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1861-6) ([doi:10.1186/s13059-019-1861-6](https://doi.org/10.1186/s13059-019-1861-6))
 
 A [python implementation](https://github.com/willtownes/glmpca-py) is also available.
 
