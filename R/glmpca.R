@@ -144,8 +144,9 @@
 #' plot(factors[,1],factors[,2],col=clust,pch=19)
 #' 
 #' @seealso
-#' \code{\link[glmpca]{predict.glmpca}}, 
+#' \code{\link{predict.glmpca}}, 
 #' \code{\link[stats]{prcomp}}, \code{\link[stats]{glm}},
+#' \code{\link[logisticPCA]{logisticSVD}},
 #' \code{\link[scry]{devianceFeatureSelection}}, 
 #' \code{\link[scry]{nullResiduals}}
 #' 
