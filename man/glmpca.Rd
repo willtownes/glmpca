@@ -4,61 +4,166 @@
 \alias{glmpca}
 \title{GLM-PCA}
 \usage{
-glmpca(Y, L, fam = c("poi", "nb", "mult", "bern"), ctl = list(maxIter =
-  1000, eps = 1e-04), penalty = 1, verbose = FALSE,
-  init = list(factors = NULL, loadings = NULL), nb_theta = 100,
-  X = NULL, Z = NULL, sz = NULL)
+glmpca(
+  Y,
+  L,
+  fam = c("poi", "nb", "nb2", "binom", "mult", "bern"),
+  minibatch = c("none", "stochastic", "memoized"),
+  optimizer = c("avagrad", "fisher"),
+  ctl = list(),
+  sz = NULL,
+  nb_theta = NULL,
+  X = NULL,
+  Z = NULL,
+  init = list(factors = NULL, loadings = NULL),
+  ...
+)
 }
 \arguments{
-\item{Y}{matrix of count data with features as rows and observations as
-columns.}
+\item{Y}{matrix-like object of count or binary data with features as rows 
+and observations as columns. Sparse matrices from the \code{Matrix} 
+package are supported. Column-oriented sparsity is preferred.}
 
-\item{L}{the desired number of latent dimensions (integer).}
+\item{L}{desired number of latent dimensions (positive integer).}
 
-\item{fam}{character describing the likelihood to use for the data (poisson,
-negative binomial, binomial approximation to multinomial, bernoulli).}
+\item{fam}{string describing the likelihood to use for the data. Families
+include Poisson ('\code{poi}'), negative binomial with global 
+overdispersion ('\code{nb}'), negative binomial with feature-specific 
+overdispersion ('\code{nb2}'), or binomial ('\code{binom}'). Families 
+'\code{mult}' and '\code{bern}' are deprecated as both are special cases of
+'\code{binom}' with \code{sz} set to NULL and 1, respectively. They are 
+provided only for backward compatibility.}
 
-\item{ctl}{a list of control parameters for optimization.}
+\item{minibatch}{string describing whether gradients should be computed with
+all observations ('\code{none}', the default) or a subset of observations, 
+which is useful for larger datasets. Option '\code{stochastic}' computes
+a noisy estimate of the full gradient using a random sample of observations
+at each iteration. Option '\code{memoized}' computes the full data 
+gradient under memory constraints by caching summary statistics across
+batches of observations.}
 
-\item{penalty}{the L2 penalty for the latent factors (default = 1).
-Regression coefficients are not penalized.}
+\item{optimizer}{string describing whether to use the fast AvaGrad method
+('\code{avagrad}', the default) or the slower diagonal Fisher scoring 
+method ('\code{fisher}') that was used in the original glmpca 
+implementation.}
 
-\item{verbose}{logical value indicating whether the current deviance should
-be printed after each iteration (default = FALSE).}
+\item{ctl}{a list of control parameters. See 'Details'}
 
-\item{init}{a list containing initial estimates for the factors (\code{U}) and
-loadings (\code{V}) matrices.}
+\item{sz}{numeric vector of size factors for each observation. If NULL 
+(the default), colSums are used for family '\code{binom}', and 
+colMeans are used for families '\code{poi}','\code{nb}', and '\code{nb2}'.}
 
-\item{nb_theta}{see \code{\link[MASS]{negative.binomial}} (\code{nb_theta}->\eqn{\infty}
+\item{nb_theta}{initial value for negative binomial overdispersion 
+parameter(s). Small values lead to more overdispersion. Default: 100. See
+\code{\link[MASS]{negative.binomial}}. (\code{nb_theta}->\eqn{\infty}
 equivalent to Poisson).}
 
 \item{X}{a matrix of column (observations) covariates. Any column with all
 same values (eg. 1 for intercept) will be removed. This is because we force
-the intercept and want to avoid collinearity.}
+a feature-specific intercept and want to avoid collinearity.}
 
 \item{Z}{a matrix of row (feature) covariates, usually not needed.}
 
-\item{sz}{numeric vector of size factors to use in place of total counts.}
+\item{init}{a list containing initial estimates for the factors (\code{U}) 
+and loadings (\code{V}) matrices.}
+
+\item{...}{additional named arguments. Provided only for backward 
+compatibility.}
 }
 \value{
-A list containing:
-\describe{
-  \item{factors}{a matrix \code{U} whose rows match the columns (observations) of \code{Y}. It is analogous to the principal components in PCA. Each column of the factors matrix is a different latent dimension.}
-  \item{loadings}{a matrix \code{V} whose rows match the rows (features/dimensions) of \code{Y}. It is analogous to loadings in PCA. Each column of the loadings matrix is a different latent dimension.}
-  \item{coefX}{a matrix \code{A} of coefficients for the observation-specific covariates matrix \code{X}. Each row of coefX corresponds to a row of \code{Y} and each column corresponds to a column of \code{X}. The first column of coefX contains feature-specific intercepts which are included by default.}
-  \item{coefZ}{a matrix \code{G} of coefficients for the feature-specific covariates matrix \code{Z}. Each row of coefZ corresponds to a column of \code{Y} and each column corresponds to a column of \code{Z}. By default no such covariates are included and this is returned as NULL.}
-  \item{dev}{a vector of deviance values. The length of the vector is the number of iterations it took for GLM-PCA's optimizer to converge. The deviance should generally decrease over time. If it fluctuates wildly, this often indicates numerical instability, which can be improved by increasing the \code{penalty} parameter.}
-  \item{family}{an S3 object of class glmpca_family. This is a minor extension to the \link[stats]{family} or \link[MASS]{negative.binomial} object used by functions like \link[stats]{glm} and \link[MASS]{glm.nb}. It is basically a list with various internal functions and parameters needed to optimize the GLM-PCA objective function. For the negative binomial case, it also contains the final estimated value of the dispersion parameter (\code{nb_theta}).}
-}
+An S3 object of class \code{glmpca} with copies of input components 
+  \code{optimizer}, \code{minibatch}, \code{ctl},\code{X}, and \code{Z},
+  along with the following additional fitted components:
+  \describe{
+    \item{factors}{a matrix \code{U} whose rows match the columns 
+      (observations) of \code{Y}. It is analogous to the principal components
+      in PCA. Each column of the factors matrix is a different latent 
+      dimension.}
+    \item{loadings}{a matrix \code{V} whose rows match the rows 
+      (features/dimensions) of \code{Y}. It is analogous to loadings in PCA. 
+      Each column of the loadings matrix is a different latent dimension.}
+    \item{coefX}{a matrix \code{A} of coefficients for the 
+      observation-specific covariates matrix \code{X}. Each row of coefX 
+      corresponds to a row of \code{Y} and each column corresponds to a 
+      column of \code{X}. The first column of coefX contains feature-specific 
+      intercepts which are included by default.}
+    \item{coefZ}{a matrix \code{G} of coefficients for the feature-specific 
+      covariates matrix \code{Z}. Each row of coefZ corresponds to a column 
+      of \code{Y} and each column corresponds to a column of \code{Z}. By 
+      default no such covariates are included and this is returned as NULL.}
+    \item{dev}{a vector of deviance values. The length of the vector is the 
+      number of iterations it took for GLM-PCA's optimizer to converge. 
+      The deviance should generally decrease over time. 
+      If it fluctuates wildly, this often indicates numerical instability, 
+      which can be improved by decreasing the learning rate or increasing the 
+      penalty, see \code{ctl}.}
+    \item{dev_smooth}{a locally smoothed version of \code{dev} that may be
+      easier to visualize when \code{minibatch='stochastic'}.}
+    \item{glmpca_family}{an S3 object of class glmpca_family. This is a minor
+      extension to the \link[stats]{family} or \link[MASS]{negative.binomial}
+      object used by functions like \link[stats]{glm} and 
+      \link[MASS]{glm.nb}. It is basically a list with various internal 
+      functions and parameters needed to optimize the GLM-PCA objective 
+      function. For the negative binomial case, it also contains the final 
+      estimated value of the overdispersion parameter (\code{nb_theta}).}
+    \item{offsets}{For Poisson and negative binomial families, the offsets
+      are the logarithmically transformed size factors. These are needed to
+      compute the predicted mean values.}
+  }
 }
 \description{
-This function implements the GLM-PCA dimensionality reduction
-  method for high-dimensional count data.
+Generalized principal components analysis for 
+  dimension reduction of non-normally distributed data.
 }
 \details{
 The basic model is \eqn{R = AX'+ZG'+VU'}, where \eqn{E[Y] = M
   = linkinv(R)}. Regression coefficients are \code{A} and \code{G}, latent
-  factors are \code{U} and loadings are \code{V}. The objective function being optimized is the deviance between \code{Y} and \code{M}, plus an L2 (ridge) \code{penalty} on \code{U} and \code{V}. Note that glmpca uses a random initialization, so for fully reproducible results one may use \code{set.seed}.
+  factors are \code{U} and loadings are \code{V}. 
+  The objective is to minimize the deviance between \code{Y} 
+  and \code{M}. The deviance quantifies the goodness-of-fit of the GLM-PCA
+  model to the data (smaller=better). 
+  Note that \code{glmpca} uses a random initialization, 
+  so for fully reproducible results one may use \code{set.seed}.
+  
+  The \code{ctl} argument accepts any of the following optional components:
+  \describe{
+    \item{verbose}{Logical. Should detailed status messages be printed 
+      during the optimization run? Default: \code{FALSE}.}
+    \item{batch_size}{Positive integer. How many observations should be
+      included in a minibatch? Larger values use more memory but lead to 
+      more accurate gradient estimation. Ignored if \code{minibatch='none'}.
+      Default: 1000.}
+    \item{lr}{Positive scalar. The AvaGrad learning rate. Large values
+      enable faster convergence but can lead to numerical instability.
+      Default: 0.1. If a numerical divergence occurs, \code{glmpca}
+      will restart the optimization \code{maxTry} times (see below)
+      and reduce the learning rate by a factor of five each time.}
+    \item{penalty}{Non-negative scalar. The L2 penalty for the latent 
+      factors. Default: 1. Regression coefficients are not penalized. Only
+      used by the Fisher scoring optimizer. Larger values improve numerical
+      stability but bias the parameter estimates. If a numerical divergence 
+      occurs, \code{glmpca} will restart the optimization \code{maxTry} times
+      (see below) and increase the penalty by a factor of five each time.}
+    \item{maxTry}{Positive integer. In case of numerical divergence, how
+      many times should optimization be restarted with a more stable penalty
+      or learning rate? Default: 10.}
+    \item{minIter}{Positive integer. Minimum number of iterations (full
+      passes through the dataset) before checking for numerical convergence.
+      Default: 20.}
+    \item{maxIter}{Positive integer. Maximum number of iterations. If
+      numerical convergence is not achieved by this point, the results may
+      not be reliable and a warning is issued. Default: 1000.}
+    \item{tol}{Positive scalar. Relative tolerance for assessing convergence.
+      Convergence is determined by comparing the deviance at the previous
+      iteration to the current iteration. Default: 1e-4.}
+    \item{epsilon}{Positive scalar. Avagrad hyperparameter. See Savarese et 
+      al (2020). Default: 0.1.}
+    \item{betas}{Numeric vector of length two. Avagrad hyperparameters. 
+      See Savarese et al (2020). Default: \code{c(0.9, 0.999)}.}
+    \item{minDev}{Scalar. Minimum deviance threshold at which optimization
+      is terminated. Useful for comparing different algorithms as it avoids
+      the need to determine numerical convergence. Default: NULL}
+  }
 }
 \examples{
 #create a simple dataset with two clusters
@@ -74,16 +179,21 @@ plot(factors[,1],factors[,2],col=clust,pch=19)
 
 }
 \references{
-Townes FW, Hicks SC, Aryee MJ, and Irizarry RA (2019).
-Feature Selection and Dimension Reduction for Single Cell RNA-Seq based on a Multinomial Model.
-\emph{biorXiv}
-\url{https://www.biorxiv.org/content/10.1101/574574v1}
+Savarese P, McAllester D, Babu S, and Maire M (2020).
+Domain-independent Dominance of Adaptive Methods. \emph{arXiv}
+\url{https://arxiv.org/abs/1912.01823}
 
-Townes FW (2019).
-Generalized Principal Component Analysis.
-\emph{arXiv}
+Townes FW (2019). Generalized Principal Component Analysis. \emph{arXiv}
 \url{https://arxiv.org/abs/1907.02647}
+
+Townes FW, Hicks SC, Aryee MJ, and Irizarry RA (2019).
+Feature Selection and Dimension Reduction for Single Cell RNA-Seq based on a 
+Multinomial Model. \emph{Genome Biology}
+\url{https://doi.org/10.1186/s13059-019-1861-6}
 }
 \seealso{
-\code{\link[stats]{prcomp}}
+\code{\link[glmpca]{predict.glmpca}}, \code{\link{print.glmpca}},
+\code{\link[stats]{prcomp}}, \code{\link[stats]{glm}},
+\code{\link[scry]{devianceFeatureSelection}}, 
+\code{\link[scry]{nullResiduals}}
 }

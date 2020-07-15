@@ -1,255 +1,135 @@
-# GLM-PCA
-#source("./algs/ortho.R")
-
-colNorms<-function(x){
-  #compute the L2 norms of columns of a matrix
-  # apply(x,2,norm)
-  sqrt(colSums(x^2))
-}
-
-ortho<-function(U,V,A,X=rep(1,nrow(U)),G=0,Z=0,ret=c("m","df")){
-  #U is NxL matrix of cell factors, V is JxL matrix of loadings onto genes
-  #X is NxKo matrix of cell specific covariates
-  #A is JxKo matrix of coefficients of X
-  #Z is JxKf matrix of gene specific covariates
-  #G is NxKf matrix of coefficients of Z
-  #ret= return either data frame or matrix format
-  #imputed expression: E[Y] = g^{-1}(R) where R = AX'+ZG'+VU'
-  ret<-match.arg(ret)
-  L<-ncol(U)
-  X<-as.matrix(X,nrow=nrow(U))
-  if(is.null(Z)){ Z<-0 }
-  Z<-as.matrix(Z,nrow=nrow(V))
-  if(all(G==0)){ G<-NULL }
-  #we assume A is not null or zero
-  #remove correlation between U and A
-  #at minimum, this will cause factors to have mean zero
-  reg<-lm(U~X-1)
-  factors<-residuals(reg)
-  A<-A+tcrossprod(V,coef(reg))
-  #remove correlation between V and G
-  if(is.null(G)){
-    loadings<-V
-  } else { #G is not empty
-    reg<-lm(V~Z-1)
-    loadings<-residuals(reg)
-    G<-G+tcrossprod(factors,coef(reg))
-  }
-  #rotate factors to make loadings orthornormal
-  svdres<-svd(loadings)
-  loadings<-svdres$u
-  factors<-t(t(factors%*%svdres$v)*svdres$d)
-  #arrange latent dimensions in decreasing L2 norm
-  o<-order(colNorms(factors),decreasing=TRUE)
-  factors<-factors[,o,drop=FALSE]
-  loadings<-loadings[,o,drop=FALSE]
-  colnames(loadings)<-colnames(factors)<-paste0("dim",1:L)
-  if(ret=="df"){
-    loadings<-as.data.frame(loadings)
-    factors<-as.data.frame(factors)
-    A<-as.data.frame(A)
-    if(!is.null(G)) G<-as.data.frame(G)
-  }
-  list(factors=factors,loadings=loadings,coefX=A,coefZ=G)
-}
-
-mat_binom_dev<-function(X,P,n){
-  #binomial deviance for two matrices
-  #X,P are JxN matrices
-  #n is vector of length N (same as cols of X,P)
-  #nz<-X>0
-  X<-t(X); P<-t(P)
-  term1<-sum(X*log(X/(n*P)), na.rm=TRUE)
-  #nn<-x<n
-  nx<-n-X
-  term2<-sum(nx*log(nx/(n*(1-P))), na.rm=TRUE)
-  2*(term1+term2)
-}
-
-glmpca_family<-function(fam,nb_theta=NULL,mult_n=NULL){
-  #create GLM family object
-  #if no offset, set offset=0
-  if(fam=="poi"){
-    family<-poisson()
-  } else if(fam=="nb"){
-    if(is.null(nb_theta)){ 
-      stop("Negative binomial dispersion parameter 'nb_theta' must be specified") 
-    }
-    family<-MASS::negative.binomial(theta=nb_theta)
-  } else if(fam %in% c("mult","bern")){
-    family<-binomial()
-    if(fam=="mult" && is.null(mult_n)){
-      stop("Multinomial sample size parameter vector 'mult_n' must be specified")
-    }
-  } else {
-    stop("unrecognized family type")
-  }
-  #variance function, determined by GLM family
-  vfunc<-family$variance
-  #inverse link func, mu as a function of linear predictor R
-  ilfunc<-family$linkinv
-  #derivative of inverse link function, dmu/dR
-  hfunc<-family$mu.eta
-  gf<-as.list(family)
-  gf$glmpca_fam<-fam
-  if(fam=="poi"){
-    gf$infograd<-function(Y,R){
-      M<-ilfunc(R) #ilfunc=exp
-      list(grad=(Y-M),info=M)
-    }
-  } else if(fam=="nb"){
-    gf$infograd<-function(Y,R){
-      M<-ilfunc(R) #ilfunc=exp
-      W<-1/vfunc(M)
-      list(grad=(Y-M)*W*M, info=W*M^2)
-    }
-    gf$nb_theta<-nb_theta
-  } else if(fam=="mult"){
-    gf$infograd<-function(Y,R){
-      Pt<-t(ilfunc(R)) #ilfunc=expit, Pt very small probabilities
-      list(grad=Y-t(mult_n*Pt), info=t(mult_n*vfunc(Pt)))
-    }
-    gf$mult_n<-mult_n
-  } else if(fam=="bern"){
-    gf$infograd<-function(Y,R){
-      P<-ilfunc(R)
-      list(grad=Y-P, info=vfunc(P))
-    }
-  } else { #this is not actually used but keeping for future reference
-    #this is most generic formula for GLM but computationally slow
-    stop("invalid fam")
-    gf$infograd<-function(Y,R){
-      M<-ilfunc(R)
-      W<-1/vfunc(M)
-      H<-hfunc(R)
-      list(grad=(Y-M)*W*H, info=W*H^2)
-    }
-  }
-  #create deviance function
-  if(fam=="mult"){
-    gf$dev_func<-function(Y,R){
-      mat_binom_dev(Y,ilfunc(R),mult_n)
-    }
-  } else {
-    gf$dev_func<-function(Y,R){
-      #Note dev.resids function gives the square of actual residuals
-      #so the sum of these is the deviance
-      sum(family$dev.resids(Y,ilfunc(R),1)) 
-    }
-  }
-  class(gf)<-c("glmpca_family","family")
-  gf
-}
-
-# has_intercept<-function(X){
-#   # not used
-#   if(all(X[,1]==1)){
-#     return(TRUE)
-#   }
-#   #if 1 vector not first column, check if it is in colspace of X
-#   #eg if X is a saturated dummy variable encoding this is satisfied
-#   y<-rep(1,nrow(X))
-#   #if 1 vector is in colspace of X, the residuals will all be zero
-#   resid<-residuals(lm(y~X-1))
-#   max(abs(resid))<1e-12
-# }
-
-remove_intercept<-function(X){
-  X<-t(t(X)-colMeans(X))
-  X[, colNorms(X)>1e-12, drop=FALSE]
-}
-
-glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
-  #create the glmpca_family object and
-  #initialize the A matrix (regression coefficients of X)
-  #Y is the data
-  #fam is the likelihood
-  #sz optional vector of size factors, default: sz=colMeans(Y) or colSums(Y)
-  #sz is ignored unless fam is 'poi' or 'nb'
-  if(!is.null(sz)){ stopifnot(length(sz)==ncol(Y)) }
-  mult_n<- if(fam=="mult"){ colSums(Y) } else { NULL }
-  gf<-glmpca_family(fam,nb_theta,mult_n)
-  if(fam %in% c("poi","nb")){
-    if(is.null(sz)){ sz<-colMeans(Y) } #size factors
-    offsets<-gf$linkfun(sz)
-    rfunc<-function(U,V){ t(offsets+tcrossprod(U,V)) } #linear predictor
-    a1<-gf$linkfun(rowSums(Y)/sum(sz))
-  } else {
-    rfunc<-function(U,V){ tcrossprod(V,U) }
-    if(fam=="mult"){ #offsets incorporated via family object
-      a1<-gf$linkfun(rowSums(Y)/sum(mult_n))
-    } else { #no offsets (eg, bernoulli)
-      a1<-gf$linkfun(rowMeans(Y))
-    }
-  }
-  if(any(is.infinite(a1))){
-    stop("Some rows were all zero, please remove them.")
-  }
-  list(gf=gf,rfunc=rfunc,intercepts=a1)
-}
-
-est_nb_theta<-function(y,mu,th){
-  #given count data y and predicted means mu>0, and a neg binom theta "th"
-  #use Newton's Method to update theta based on the negative binomial likelihood
-  #note this uses observed rather than expected information
-  #regularization:
-  #let u=log(theta). We use the prior u~N(0,1) as penalty
-  #equivalently we assume theta~lognormal(0,1) so the mode is at 1 (geometric distr)
-  #dtheta/du=e^u=theta
-  #d2theta/du2=theta
-  #dL/dtheta * dtheta/du
-  #n<-length(y)
-  u<-log(th)
-  #dL/dtheta*dtheta/du
-  score<- th*sum(digamma(th+y)-digamma(th)+log(th)+1-log(th+mu)-(y+th)/(mu+th))
-  #d^2L/dtheta^2 * (dtheta/du)^2
-  info1<- -th^2*sum(trigamma(th+mu)-trigamma(th)+1/th-2/(mu+th)+(y+th)/(mu+th)^2)  
-  #dL/dtheta*d^2theta/du^2 = score
-  info<- info1-score
-  #L2 penalty on u=log(th)
-  return(exp(u+(score-u)/(info+1)))
-  #grad<-score-u
-  #exp(u+sign(grad)*min(maxstep,abs(grad)))
-}
-
 #' @title GLM-PCA
-#' @description This function implements the GLM-PCA dimensionality reduction
-#'   method for high-dimensional count data.
+#' @description Generalized principal components analysis for 
+#'   dimension reduction of non-normally distributed data.
 #' @name glmpca
 #' 
-#' @param Y matrix of count data with features as rows and observations as
-#'   columns.
-#' @param L the desired number of latent dimensions (integer).
-#' @param fam character describing the likelihood to use for the data (poisson,
-#'   negative binomial, binomial approximation to multinomial, bernoulli).
-#' @param ctl a list of control parameters for optimization.
-#' @param penalty the L2 penalty for the latent factors (default = 1).
-#'   Regression coefficients are not penalized.
-#' @param verbose logical value indicating whether the current deviance should
-#'   be printed after each iteration (default = FALSE).
-#' @param init a list containing initial estimates for the factors (\code{U}) and
-#'   loadings (\code{V}) matrices.
-#' @param nb_theta see \code{\link[MASS]{negative.binomial}} (\code{nb_theta}->\eqn{\infty}
+#' @param Y matrix-like object of count or binary data with features as rows 
+#'   and observations as columns. Sparse matrices from the \code{Matrix} 
+#'   package are supported. Column-oriented sparsity is preferred.
+#' @param L desired number of latent dimensions (positive integer).
+#' @param fam string describing the likelihood to use for the data. Families
+#'   include Poisson ('\code{poi}'), negative binomial with global 
+#'   overdispersion ('\code{nb}'), negative binomial with feature-specific 
+#'   overdispersion ('\code{nb2}'), or binomial ('\code{binom}'). Families 
+#'   '\code{mult}' and '\code{bern}' are deprecated as both are special cases of
+#'   '\code{binom}' with \code{sz} set to NULL and 1, respectively. They are 
+#'   provided only for backward compatibility.
+#' @param minibatch string describing whether gradients should be computed with
+#'   all observations ('\code{none}', the default) or a subset of observations, 
+#'   which is useful for larger datasets. Option '\code{stochastic}' computes
+#'   a noisy estimate of the full gradient using a random sample of observations
+#'   at each iteration. Option '\code{memoized}' computes the full data 
+#'   gradient under memory constraints by caching summary statistics across
+#'   batches of observations.
+#' @param optimizer string describing whether to use the fast AvaGrad method
+#'   ('\code{avagrad}', the default) or the slower diagonal Fisher scoring 
+#'   method ('\code{fisher}') that was used in the original glmpca 
+#'   implementation.
+#' @param ctl a list of control parameters. See 'Details'
+#' @param sz numeric vector of size factors for each observation. If NULL 
+#'   (the default), colSums are used for family '\code{binom}', and 
+#'   colMeans are used for families '\code{poi}','\code{nb}', and '\code{nb2}'.
+#' @param nb_theta initial value for negative binomial overdispersion 
+#'   parameter(s). Small values lead to more overdispersion. Default: 100. See
+#'   \code{\link[MASS]{negative.binomial}}. (\code{nb_theta}->\eqn{\infty}
 #'   equivalent to Poisson).
 #' @param X a matrix of column (observations) covariates. Any column with all
 #'   same values (eg. 1 for intercept) will be removed. This is because we force
-#'   the intercept and want to avoid collinearity.
+#'   a feature-specific intercept and want to avoid collinearity.
 #' @param Z a matrix of row (feature) covariates, usually not needed.
-#' @param sz numeric vector of size factors to use in place of total counts.
+#' @param init a list containing initial estimates for the factors (\code{U}) 
+#'   and loadings (\code{V}) matrices.
+#' @param ... additional named arguments. Provided only for backward 
+#'   compatibility.
 #'
 #' @details The basic model is \eqn{R = AX'+ZG'+VU'}, where \eqn{E[Y] = M
 #'   = linkinv(R)}. Regression coefficients are \code{A} and \code{G}, latent
-#'   factors are \code{U} and loadings are \code{V}. The objective function being optimized is the deviance between \code{Y} and \code{M}, plus an L2 (ridge) \code{penalty} on \code{U} and \code{V}. Note that glmpca uses a random initialization, so for fully reproducible results one may use \code{set.seed}.
-#' 
-#' @return A list containing:
-#' \describe{
-#'   \item{factors}{a matrix \code{U} whose rows match the columns (observations) of \code{Y}. It is analogous to the principal components in PCA. Each column of the factors matrix is a different latent dimension.}
-#'   \item{loadings}{a matrix \code{V} whose rows match the rows (features/dimensions) of \code{Y}. It is analogous to loadings in PCA. Each column of the loadings matrix is a different latent dimension.}
-#'   \item{coefX}{a matrix \code{A} of coefficients for the observation-specific covariates matrix \code{X}. Each row of coefX corresponds to a row of \code{Y} and each column corresponds to a column of \code{X}. The first column of coefX contains feature-specific intercepts which are included by default.}
-#'   \item{coefZ}{a matrix \code{G} of coefficients for the feature-specific covariates matrix \code{Z}. Each row of coefZ corresponds to a column of \code{Y} and each column corresponds to a column of \code{Z}. By default no such covariates are included and this is returned as NULL.}
-#'   \item{dev}{a vector of deviance values. The length of the vector is the number of iterations it took for GLM-PCA's optimizer to converge. The deviance should generally decrease over time. If it fluctuates wildly, this often indicates numerical instability, which can be improved by increasing the \code{penalty} parameter.}
-#'   \item{family}{an S3 object of class glmpca_family. This is a minor extension to the \link[stats]{family} or \link[MASS]{negative.binomial} object used by functions like \link[stats]{glm} and \link[MASS]{glm.nb}. It is basically a list with various internal functions and parameters needed to optimize the GLM-PCA objective function. For the negative binomial case, it also contains the final estimated value of the dispersion parameter (\code{nb_theta}).}
-#' }
+#'   factors are \code{U} and loadings are \code{V}. 
+#'   The objective is to minimize the deviance between \code{Y} 
+#'   and \code{M}. The deviance quantifies the goodness-of-fit of the GLM-PCA
+#'   model to the data (smaller=better). 
+#'   Note that \code{glmpca} uses a random initialization, 
+#'   so for fully reproducible results one may use \code{set.seed}.
+#'   
+#'   The \code{ctl} argument accepts any of the following optional components:
+#'   \describe{
+#'     \item{verbose}{Logical. Should detailed status messages be printed 
+#'       during the optimization run? Default: \code{FALSE}.}
+#'     \item{batch_size}{Positive integer. How many observations should be
+#'       included in a minibatch? Larger values use more memory but lead to 
+#'       more accurate gradient estimation. Ignored if \code{minibatch='none'}.
+#'       Default: 1000.}
+#'     \item{lr}{Positive scalar. The AvaGrad learning rate. Large values
+#'       enable faster convergence but can lead to numerical instability.
+#'       Default: 0.1. If a numerical divergence occurs, \code{glmpca}
+#'       will restart the optimization \code{maxTry} times (see below)
+#'       and reduce the learning rate by a factor of five each time.}
+#'     \item{penalty}{Non-negative scalar. The L2 penalty for the latent 
+#'       factors. Default: 1. Regression coefficients are not penalized. Only
+#'       used by the Fisher scoring optimizer. Larger values improve numerical
+#'       stability but bias the parameter estimates. If a numerical divergence 
+#'       occurs, \code{glmpca} will restart the optimization \code{maxTry} times
+#'       (see below) and increase the penalty by a factor of five each time.}
+#'     \item{maxTry}{Positive integer. In case of numerical divergence, how
+#'       many times should optimization be restarted with a more stable penalty
+#'       or learning rate? Default: 10.}
+#'     \item{minIter}{Positive integer. Minimum number of iterations (full
+#'       passes through the dataset) before checking for numerical convergence.
+#'       Default: 20.}
+#'     \item{maxIter}{Positive integer. Maximum number of iterations. If
+#'       numerical convergence is not achieved by this point, the results may
+#'       not be reliable and a warning is issued. Default: 1000.}
+#'     \item{tol}{Positive scalar. Relative tolerance for assessing convergence.
+#'       Convergence is determined by comparing the deviance at the previous
+#'       iteration to the current iteration. Default: 1e-4.}
+#'     \item{epsilon}{Positive scalar. Avagrad hyperparameter. See Savarese et 
+#'       al (2020). Default: 0.1.}
+#'     \item{betas}{Numeric vector of length two. Avagrad hyperparameters. 
+#'       See Savarese et al (2020). Default: \code{c(0.9, 0.999)}.}
+#'     \item{minDev}{Scalar. Minimum deviance threshold at which optimization
+#'       is terminated. Useful for comparing different algorithms as it avoids
+#'       the need to determine numerical convergence. Default: NULL}
+#'   }
+#'   
+#' @return An S3 object of class \code{glmpca} with copies of input components 
+#'   \code{optimizer}, \code{minibatch}, \code{ctl},\code{X}, and \code{Z},
+#'   along with the following additional fitted components:
+#'   \describe{
+#'     \item{factors}{a matrix \code{U} whose rows match the columns 
+#'       (observations) of \code{Y}. It is analogous to the principal components
+#'       in PCA. Each column of the factors matrix is a different latent 
+#'       dimension.}
+#'     \item{loadings}{a matrix \code{V} whose rows match the rows 
+#'       (features/dimensions) of \code{Y}. It is analogous to loadings in PCA. 
+#'       Each column of the loadings matrix is a different latent dimension.}
+#'     \item{coefX}{a matrix \code{A} of coefficients for the 
+#'       observation-specific covariates matrix \code{X}. Each row of coefX 
+#'       corresponds to a row of \code{Y} and each column corresponds to a 
+#'       column of \code{X}. The first column of coefX contains feature-specific 
+#'       intercepts which are included by default.}
+#'     \item{coefZ}{a matrix \code{G} of coefficients for the feature-specific 
+#'       covariates matrix \code{Z}. Each row of coefZ corresponds to a column 
+#'       of \code{Y} and each column corresponds to a column of \code{Z}. By 
+#'       default no such covariates are included and this is returned as NULL.}
+#'     \item{dev}{a vector of deviance values. The length of the vector is the 
+#'       number of iterations it took for GLM-PCA's optimizer to converge. 
+#'       The deviance should generally decrease over time. 
+#'       If it fluctuates wildly, this often indicates numerical instability, 
+#'       which can be improved by decreasing the learning rate or increasing the 
+#'       penalty, see \code{ctl}.}
+#'     \item{dev_smooth}{a locally smoothed version of \code{dev} that may be
+#'       easier to visualize when \code{minibatch='stochastic'}.}
+#'     \item{glmpca_family}{an S3 object of class glmpca_family. This is a minor
+#'       extension to the \link[stats]{family} or \link[MASS]{negative.binomial}
+#'       object used by functions like \link[stats]{glm} and 
+#'       \link[MASS]{glm.nb}. It is basically a list with various internal 
+#'       functions and parameters needed to optimize the GLM-PCA objective 
+#'       function. For the negative binomial case, it also contains the final 
+#'       estimated value of the overdispersion parameter (\code{nb_theta}).}
+#'     \item{offsets}{For Poisson and negative binomial families, the offsets
+#'       are the logarithmically transformed size factors. These are needed to
+#'       compute the predicted mean values.}
+#'   }
 #' 
 #' @examples
 #' #create a simple dataset with two clusters
@@ -264,139 +144,216 @@ est_nb_theta<-function(y,mu,th){
 #' plot(factors[,1],factors[,2],col=clust,pch=19)
 #' 
 #' @seealso
-#' \code{\link[stats]{prcomp}}
+#' \code{\link[glmpca]{predict.glmpca}}, \code{\link{print.glmpca}},
+#' \code{\link[stats]{prcomp}}, \code{\link[stats]{glm}},
+#' \code{\link[scry]{devianceFeatureSelection}}, 
+#' \code{\link[scry]{nullResiduals}}
 #' 
 #' @references
-#' Townes FW, Hicks SC, Aryee MJ, and Irizarry RA (2019).
-#' Feature Selection and Dimension Reduction for Single Cell RNA-Seq based on a Multinomial Model.
-#' \emph{biorXiv}
-#' \url{https://www.biorxiv.org/content/10.1101/574574v1}
+#' Savarese P, McAllester D, Babu S, and Maire M (2020).
+#' Domain-independent Dominance of Adaptive Methods. \emph{arXiv}
+#' \url{https://arxiv.org/abs/1912.01823}
 #' 
-#' Townes FW (2019).
-#' Generalized Principal Component Analysis.
-#' \emph{arXiv}
+#' Townes FW (2019). Generalized Principal Component Analysis. \emph{arXiv}
 #' \url{https://arxiv.org/abs/1907.02647}
+#' 
+#' Townes FW, Hicks SC, Aryee MJ, and Irizarry RA (2019).
+#' Feature Selection and Dimension Reduction for Single Cell RNA-Seq based on a 
+#' Multinomial Model. \emph{Genome Biology}
+#' \url{https://doi.org/10.1186/s13059-019-1861-6}
 #' 
 #' @import stats
 #' @export
-glmpca <- function(Y, L, fam=c("poi","nb","mult","bern"),
-				 ctl = list(maxIter=1000, eps=1e-4),
-				 penalty = 1, verbose = FALSE,
-				 init = list(factors=NULL, loadings=NULL),
-				 nb_theta = 100, X = NULL, Z = NULL, sz = NULL){
-  #Y is data with features=rows, observations=cols
-  #L is number of desired latent dimensions
-  #fam the likelihood for the data 
-  #(poisson, negative binomial, binomial approximation to multinomial, bernoulli)
-  #ctl a list of control parameters for optimization
-  #penalty the L2 penalty for the latent factors
-  #regression coefficients are not penalized
-  #nb_theta see MASS::negative.binomial (nb_theta->infty = Poisson)
-  #X a matrix of column (observations) covariates
-  #any column with all same values (eg 1 for intercept) will be removed
-  #this is because we force the intercept, so want to avoid collinearity
-  #Z a matrix of row (feature) covariates, usually not needed
-  #the basic model is R=AX'+ZG'+VU', where E[Y]=M=linkinv(R)
-  #regression coefficients are A,G, latent factors are U and loadings V.
-  #For negative binomial, convergence only works if starting with nb_theta large
-  
-  Y<-as.matrix(Y)
+glmpca<-function(Y, L, fam=c("poi","nb","nb2","binom","mult","bern"), 
+                   minibatch=c("none","stochastic","memoized"),
+                   optimizer=c("avagrad","fisher"), ctl = list(), 
+                   sz=NULL, nb_theta=NULL, X=NULL, Z=NULL, 
+                   init=list(factors=NULL, loadings=NULL), ...){
+  #Y is a matrix-like object, must support the following operations:
+  #min,max,as.matrix,sum,colSums,colMeans,rowSums,rowMeans,`[`
   fam<-match.arg(fam)
-  N<-ncol(Y); J<-nrow(Y)
-  #sanity check inputs
-  if(fam %in% c("poi","nb","mult","bern")){ stopifnot(min(Y) >= 0) }
-  if(fam=="bern"){ stopifnot(max(Y) <= 1) }
+  minibatch<-match.arg(minibatch)
+  optimizer<-match.arg(optimizer)
+  #handle deprecated arguments from old function signature
+  if(fam=="mult"){
+    message("Family 'mult' is deprecated. Coercing to equivalent family ",
+            "'binom' with sz=NULL instead. Please use this in the future, ",
+            "as 'mult' will eventually be removed.")
+    fam<-"binom"; sz<-NULL
+  }
+  if(fam=="bern"){
+    message("Family 'bern' is deprecated. Coercing to equivalent family ",
+            "'binom' with sz=1 instead. Please use this in the future, ",
+            "as 'bern' will eventually be removed.")
+    fam<-"binom"; sz<-1
+  }
+  dots<-list(...)
+  if(!is.null(dots$penalty)){
+    message("Control parameter 'penalty' should be provided as an element ",
+            "of 'ctl' rather than a separate argument.")
+    if(is.null(ctl$penalty)){ ctl$penalty<-dots$penalty }
+  }
+  if(!is.null(dots$verbose)){
+    message("Control parameter 'verbose' should be provided as an element ",
+            "of 'ctl' rather than a separate argument.")
+    if(is.null(ctl$verbose)){ ctl$verbose<-dots$verbose }
+  }
   
-  #preprocess covariates and set updateable indices
-  if(!is.null(X)){ 
-    stopifnot(nrow(X)==ncol(Y))
-    #we force an intercept, so remove it from X to prevent collinearity
-    X<-remove_intercept(X)
-    Ko<-ncol(X)+1
-  } else {
-    Ko<-1
+  #sanity check inputs
+  if(fam %in% c("poi","nb","nb2","binom")){ stopifnot(min(Y) >= 0) }
+  if(!is.null(sz)){
+    stopifnot(all(sz>0))
+    if(fam=="binom"){
+      stopifnot(max(Y) <= max(sz))
+    }
   }
-  if(!is.null(Z)){ 
-    stopifnot(nrow(Z)==nrow(Y)) 
-    Kf<-ncol(Z)
-  } else {
-    Kf<-0
-  }
-  lid<-(Ko+Kf)+(1:L)
-  uid<-Ko + 1:(Kf+L)
-  vid<-c(1:Ko, lid)
-  Ku<-length(uid); Kv<-length(vid)
+  N<-ncol(Y); J<-nrow(Y)
+  
+  ic<-init_ctl(N,fam,minibatch,optimizer,ctl)
+  fam<-ic$fam; minibatch<-ic$minibatch; optimizer<-ic$optimizer; ctl<-ic$ctl
+  if(minibatch=="none"){ 
+    if(is(Y,"sparseMatrix")){
+      message("Sparse matrices are not supported for minibatch='none'. ",
+              "Coercing to dense matrix. If this exhausts memory, ",
+              "consider setting minibatch to 'stochastic' or 'memoized'.")
+    }
+    Y<-as.matrix(Y)
+  } #in future, handle DelayedArray too
   
   #create glmpca_family object
-  gnt<-glmpca_init(Y,fam,sz,nb_theta)
-  gf<-gnt$gf; rfunc<-gnt$rfunc; a1<-gnt$intercepts
+  gnt<-glmpca_init(Y, fam, sz=sz, nb_theta=nb_theta)
+  gf<-gnt$gf; rfunc<-gnt$rfunc; offsets<-gnt$offsets
   
-  #initialize U,V, with row-specific intercept terms
-  U<-cbind(1, X, matrix(rnorm(N*Ku)*1e-5/Ku,nrow=N))
-  if(!is.null(init$factors)){
-    #message("initialize factors")
-    L0<-min(L,ncol(init$factors))
-    U[,(Ko+Kf)+(1:L0)]<-init$factors[,1:L0,drop=FALSE]
-  }
-  #a1 = naive MLE for gene intercept only
-  V<-cbind(a1, matrix(rnorm(J*(Ko-1))*1e-5/Kv,nrow=J))
-  V<-cbind(V, Z, matrix(rnorm(J*L)*1e-5/Kv,nrow=J))
-  if(!is.null(init$loadings)){
-    #message("initialize loadings")
-    L0<-min(L,ncol(init$loadings))
-    V[,(Ko+Kf)+(1:L0)]<-init$loadings[,1:L0,drop=FALSE]
-  }
+  #initialize factors and loadings matrices
+  uv<-uv_init(N, J, L, gnt$intercepts, X=X, Z=Z, init=init)
+  U<-uv$U; V<-uv$V; lid<-uv$lid; uid<-uv$uid; vid<-uv$vid
   
-  #run optimization
-  dev<-rep(NA,ctl$maxIter)
-  for(t in 1:ctl$maxIter){
-    #rmse[t]<-sd(Y-ilfunc(rfunc(U,V)))
-    dev[t]<-gf$dev_func(Y,rfunc(U,V))
-    if(!is.finite(dev[t])){
-      stop("Numerical divergence (deviance no longer finite), try increasing the penalty to improve stability of optimization.")
+  #minimize the deviance using an optimizer
+  fit<-NULL
+  for(ntry in seq.int(ctl$maxTry)){
+    if(optimizer=="avagrad"){ 
+      if(ctl$verbose){
+        message("Trying AvaGrad with learning rate: ",signif(ctl$lr,4))
+      }
+      e<-tryCatch(
+        if(minibatch=="none"){
+          fit<-avagrad_optimizer(Y,U,V,uid,vid,ctl,gf,rfunc,offsets)
+        } else if(minibatch=="stochastic"){
+          fit<-avagrad_stochastic_optimizer(Y,U,V,uid,vid,ctl,gf,rfunc,offsets)
+        } else {
+          fit<-avagrad_memoized_optimizer(Y,U,V,uid,vid,ctl,gf,rfunc,offsets)
+        },
+        error_glmpca_divergence=function(e){ e },
+        error_glmpca_dev_incr=function(e){ e }
+      )
+      if(is.null(fit)){ ctl$lr<-ctl$lr/5 } else { break }
+    } else if(optimizer=="fisher"){
+      if(ctl$verbose){
+        message("Trying Fisher scoring with penalty: ",ctl$penalty)
+      }
+      e<-tryCatch(
+        fit<-fisher_optimizer(Y,U,V,uid,vid,ctl,gf,rfunc,offsets),
+        error_glmpca_divergence=function(e){ e },
+        error_glmpca_dev_incr=function(e){ e }
+      )
+      if(is.null(fit)){ 
+        if(ctl$penalty==0){ 
+          ctl$penalty<-1
+        } else { 
+          ctl$penalty<-ctl$penalty*5 
+        }
+      } else { 
+        break 
+      }
+      # } else if(optimizer=="none"){ #closed-form approximate likelihood only
+      #   dev<-gf$dev_func(Y,rfunc(U,V,offsets))
+      #   fit<-list(U=U, V=V, dev=dev, gf=gf)
+      #   break
+    } else {
+      stop("unrecognized optimizer")
     }
-    if(t>5 && abs(dev[t]-dev[t-1])/(0.1+abs(dev[t-1]))<ctl$eps){
-      break
-    }
-    if(verbose){ 
-      dev_format<-format(dev[t],scientific=TRUE,digits=4)
-      msg<-paste0("Iteration: ",t," | deviance=",dev_format)
-      if(fam=="nb"){ msg<-paste0(msg," | nb_theta: ",signif(nb_theta,3)) }
-      message(msg) 
-    }
-    
-    #(k %in% lid) ensures no penalty on regression coefficients: 
-    for(k in vid){
-      ig<- gf$infograd(Y,rfunc(U,V))
-      grads<- (ig$grad)%*%U[,k] - penalty*V[,k]*(k %in% lid) 
-      infos<- (ig$info) %*% U[,k]^2 + penalty*(k %in% lid)
-      V[,k]<-V[,k]+grads/infos
-    }
-    for(k in uid){
-      ig<- gf$infograd(Y,rfunc(U,V))
-      grads<- crossprod(ig$grad, V[,k]) - penalty*U[,k]*(k %in% lid) 
-      infos<- crossprod(ig$info, V[,k]^2) + penalty*(k %in% lid) 
-      U[,k]<-U[,k]+grads/infos
-    }
-    if(fam=="nb"){
-      nb_theta<-est_nb_theta(Y,gf$linkinv(rfunc(U,V)),nb_theta)
-      gf<-glmpca_family(fam,nb_theta)
-    }
+  } #end for loop over different penalty or learning rate values
+  if(ntry==ctl$maxTry){ stop(e) }
+  if(length(fit$dev)==ctl$maxIter){
+    warning("Reached maximum number of iterations (",ctl$maxIter,
+            ") without numerical convergence. Results may be unreliable.")
   }
-  #postprocessing: include row and column labels for regression coefficients
-  if(is.null(Z)){
-    G<-NULL
-  } else {
-    G<-U[,Ko+(1:Kf),drop=FALSE]
-    rownames(G)<-colnames(Y); colnames(G)<-colnames(Z)
-  }
-  X<-if(is.null(X)){ matrix(1,nrow=N) } else { cbind(1,X) }
-  if(!is.null(colnames(X))){ colnames(X)[1]<-"(Intercept)" }
-  A<-V[,1:Ko,drop=FALSE]
-  rownames(A)<-rownames(Y); colnames(A)<-colnames(X)
-  res<-ortho(U[,lid,drop=FALSE],V[,lid,drop=FALSE],A,X=X,G=G,Z=Z,ret="df")
-  rownames(res$factors)<-colnames(Y)
-  rownames(res$loadings)<-rownames(Y)
-  res$dev=dev[1:t]; res$family<-gf
+  #print(class(Y))
+  res<-postprocess(fit,uid,vid,lid,rnames=rownames(Y),cnames=colnames(Y))
+  fpars<-list(ctl=ctl,offsets=offsets,optimizer=optimizer,minibatch=minibatch)
+  res<-c(res,fpars) #S3 object of class "glmpca" (really just a big list)
+  class(res)<-"glmpca"
   res
+}
+
+print.glmpca<-function(fit,...){
+  cat("GLM-PCA fit with", ncol(fit$factors), "latent factors")
+  cat("\nnumber of observations:",nrow(fit$factors))
+  cat("\nnumber of features:",nrow(fit$loadings))
+  cat("\nfamily:",fit$glmpca_family$glmpca_fam)
+  cat("\nminibatch:",fit$minibatch)
+  cat("\noptimizer:",fit$optimizer)
+  if(fit$optimizer=="fisher"){
+    cat("\nl2 penalty:",fit$ctl$penalty)
+  }
+  if(fit$optimizer=="avagrad"){
+    cat("\nlearning rate:",signif(fit$ctl$lr,3))
+  }
+  dev_final<-format(tail(fit$dev,1),scientific=TRUE,digits=4)
+  cat("\nfinal deviance:",dev_final)
+  invisible(fit)
+}
+
+#' @title Predict Method for GLM-PCA Fits
+#' @description Predict the mean matrix from a fitted generalized principal
+#'   component analysis model object.
+#' @name predict.glmpca
+#' 
+#' @param fit a fitted object of class inheriting from \code{glmpca}.
+#' @param ... additional named arguments. Currently ignored.
+#' 
+#' @details Let \code{Y} be the data matrix originally used to estimate the
+#'   parameters in \code{fit}. The GLM-PCA model regards each element of 
+#'   \code{Y} as a random sample from an exponential family distribution 
+#'   such as a Poisson, negative binomial, or binomial likelihood. The 
+#'   components of a GLM-PCA fit are combined to produce the predicted 
+#'   mean of this distribution at each entry of \code{Y}. This matrix may be
+#'   regarded as a 'denoised' version of the original data.
+#' 
+#' @return a dense \code{matrix} of predicted mean values.
+#' 
+#' @section Warning:
+#'   The predicted mean matrix returned by this function
+#'   will have the same dimensions as the original data matrix and it will be
+#'   dense even if the original data were sparse. This can exhaust available
+#'   memory for large datasets, so use with caution.
+#'   
+#' @seealso 
+#' \code{\link{glmpca}}, 
+#' \code{\link[stats]{predict.glm}} with \code{type='response'}
+#' 
+#' @export
+predict.glmpca<-function(fit,...){#output="matrix"){
+  #given a fitted glmpca object, return the fitted mean matrix
+  #can be useful for imputation of noisy data
+  #warning: will produce a dense matrix which can overwhelm memory for large
+  #datasets
+  gf<-fit$glmpca_family
+  offsets<-fit$offsets
+  binom_n<-gf$binom_n
+  ilfunc<-gf$linkinv
+  U<-as.matrix(cbind(fit$X, fit$coefZ, fit$factors))
+  V<-as.matrix(cbind(fit$coefX, fit$Z, fit$loadings))
+  if(is.null(offsets) || all(offsets==0)){ #everything but poi, nb, nb2
+    M<-ilfunc(tcrossprod(V,U))
+  } else { #poi, nb, nb2
+    M<-ilfunc(t(offsets+tcrossprod(U,V)))
+  }
+  if(is.null(binom_n) || all(binom_n)==1){ #everything but binomial w/ n>=2
+    return(M)
+  } else if(length(binom_n)>1) { #binomial approx to multinomial
+    return(t(t(M)*binom_n))
+  } else { #binomial w/ global n>=2 (eg n=2 for SNP data
+    return(M*binom_n)
+  }
 }
