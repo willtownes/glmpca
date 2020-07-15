@@ -22,6 +22,7 @@ print.glmpca_family <- function(x, ...){
   invisible(x)
 }
 
+#' @importFrom stats make.link
 nb2_family<-function(theta=stop("'theta' must be specified")){
   #modification of MASS::negative.binomial family that allows theta to be a vector instead of a scalar
   #only log link function is supported.
@@ -73,6 +74,7 @@ mat_binom_dev<-function(X,P,n){
   2*(term1+term2)
 }
 
+#' @importFrom stats binomial poisson
 glmpca_family<-function(fam,binom_n=NULL,nb_theta=NULL){
   #binom_n a scalar or vector of total count params for binomial distribution
   #if binom_n is a vector, it is a binomial approx to multinomial (n=total count for each observation)

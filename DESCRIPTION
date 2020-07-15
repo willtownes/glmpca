@@ -13,15 +13,16 @@ Authors@R: c(person("F. William", "Townes", email = "will.townes@gmail.com",
 License: LGPL (>= 3) | file LICENSE
 Depends:
     R (>= 3.5),
-    stats
 Imports:
+    methods,
+    stats,
+    utils
 Suggests:
     covr,
     ggplot2,
     knitr,
     MASS,
     Matrix,
-    scry,
     testthat,
 URL: https://github.com/willtownes/glmpca
 BugReports: https://github.com/willtownes/glmpca/issues

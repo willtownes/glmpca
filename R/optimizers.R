@@ -5,14 +5,6 @@ NB_THETA_MAX<-1e4
 #negative binomial theta values larger than this are truncated to this value
 #motivation: large nb_theta makes it essentially poisson, no point in estimating if beyond this point.
 
-stop_custom<-function(.subclass, message, call = NULL, ...){
-  #https://adv-r.hadley.nz/conditions.html#signalling
-  err <- structure(list(message=message,call=call,...),
-                   class = c(.subclass, "error", "condition")
-  )
-  stop(err)
-}
-
 check_divergence<-function(curr,alg=c("avagrad","avagrad_stochastic","fisher"),
                            ctl_param){
   #ctl is the value of 'lr' (if avagrad) or 'penalty' (if fisher)
@@ -32,6 +24,7 @@ check_divergence<-function(curr,alg=c("avagrad","avagrad_stochastic","fisher"),
   }
 }
 
+#' @importFrom utils tail
 check_dev_decr<-function(dev){
   if(tail(dev,1)>dev[1]){
     msg1<-"Poor model fit (final deviance higher than initial deviance)."
@@ -61,28 +54,6 @@ print_status<-function(curr,iter,nb_theta=NULL){
   msg<-paste0("Iteration: ",iter," | deviance=",dev_format)
   if(length(nb_theta)==1){ msg<-paste0(msg," | nb_theta: ",signif(nb_theta,3)) }
   message(msg) 
-}
-
-create_minibatches<-function(N,batch_size=1000,randomize=TRUE){
-  #N = number of total observations in the data
-  #if randomize=TRUE, we assume the data has not been shuffled,
-  #...so minibatch indices are randomized
-  #if randomize=FALSE, we assume the data itself 
-  #...has been pre-shuffled so minibatches can be sequential
-  batch_size<-max(batch_size,1) #batch size must be at least one observation
-  batch_size<-min(batch_size,N) #batch size cannot be larger than dataset size
-  B<-ceiling(N/batch_size) #round up to ensure no batch exceeds the requested batch_size
-  i<-seq_len(N)
-  if(B==1){ #case where only one minibatch containing whole dataset
-    return(list(i))
-  } else { #non-trivial number of minibatches
-    bk<-cut(i,B,labels=FALSE)
-    if(randomize) { #Y not preshuffled, must randomize minibatch indices
-      return(split(sample.int(N,N,replace=FALSE),bk))
-    } else { #Y is preshuffled, no need to randomize batches
-      return(split(i,bk))
-    }
-  } 
 }
 
 nb_theta_infograd<-function(Y,Mu,th,grad_only=TRUE){
@@ -436,6 +407,8 @@ avagrad_memoized_optimizer2<-function(Y,U,V,uid,vid,ctl,gf,rfunc,offsets){
   list(U=U, V=V, dev=check_dev_decr(dev[1:t]), gf=gf)
 }
 
+#' @importFrom stats fitted lm
+#' @importFrom utils tail
 avagrad_stochastic_optimizer<-function(Y,U,V,uid,vid,ctl,gf,rfunc,offsets){
   #Y: the data matrix
   #U: initialized factors matrix, including all column covariates & coefficients

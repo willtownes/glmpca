@@ -192,7 +192,7 @@ Multinomial Model. \emph{Genome Biology}
 \url{https://doi.org/10.1186/s13059-019-1861-6}
 }
 \seealso{
-\code{\link[glmpca]{predict.glmpca}}, \code{\link{print.glmpca}},
+\code{\link[glmpca]{predict.glmpca}}, 
 \code{\link[stats]{prcomp}}, \code{\link[stats]{glm}},
 \code{\link[scry]{devianceFeatureSelection}}, 
 \code{\link[scry]{nullResiduals}}

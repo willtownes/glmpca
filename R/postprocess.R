@@ -1,13 +1,6 @@
 # rotate GLM-PCA factors to orthonormal basis
 
-l2norm<-function(x){sqrt(sum(x^2))}
-
-colNorms<-function(x){
-  #compute the L2 norms of columns of a matrix
-  # apply(x,2,norm)
-  sqrt(colSums(x^2))
-}
-
+#' @importFrom stats coef lm.fit residuals
 ortho<-function(U, V, A, X=rep(1,nrow(U)), ret=c("m","df"), G=NULL, Z=NULL, 
                 rnames=NULL, cnames=NULL){
   #U is NxL matrix of cell factors, V is JxL matrix of loadings onto genes

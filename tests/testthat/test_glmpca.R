@@ -8,27 +8,29 @@ test_that("glmpca works with intended input types", {
 	Y <- matrix(rnbinom(50, 4, .8), ncol = 5)
 	
 	g1 <- glmpca(Y, L=2, fam = "poi")
-	expect_is(g1, "list")
+	expect_s3_class(g1, "glmpca")
 	expect_equal(dim(g1$factors), c(5,2))
 	expect_equal(dim(g1$loadings), c(10,2))
 	expect_is(g1$dev, "numeric")
-	expect_is(g1$family, "glmpca_family")
+	expect_s3_class(g1$glmpca_family, "glmpca_family")
 	
 	# try out different arguments, make sure it still runs
-	g1 <- glmpca(Y, L=2, fam = "nb", verbose = TRUE, X = matrix(1:5, ncol=1),
-				 Z = matrix(1:10, ncol=1))
-	g1 <- glmpca(Y, L=2, fam = "mult", sz = 1:5)
+	g1 <- glmpca(Y, L=2, fam = "nb", ctl=list(maxIter=3000),
+	             X = matrix(1:5, ncol=1), Z = matrix(1:10, ncol=1))
+	g1 <- glmpca(Y, L=2, fam = "binom", sz = colSums(Y)*2)
 	f0 <- matrix(rnorm(10)/10, ncol=2)
 	l0 <- matrix(rnorm(20)/10, ncol=2)
 	g1 <- glmpca(Y, L=2, init = list(factors = f0, loadings = l0))
 	Y[Y > 0] <- 1
-	g1 <- glmpca(Y, L=2, fam = "bern")
+	g1 <- glmpca(Y, L=2, fam = "binom", sz=1)
 	
 	# pathological cases
 	Y[1,1] <- 2
-	expect_error(glmpca(Y, L=2, fam = "bern"), "max(Y) <= 1 is not TRUE", fixed = TRUE)
+	expect_error(glmpca(Y, L=2, fam = "bern"), "max(Y) <= max(sz) is not TRUE", 
+	             fixed = TRUE)
 	Y[2,2] <- -1
-	expect_error(glmpca(Y, L=2, fam = "poi"), "min(Y) >= 0 is not TRUE", fixed = TRUE)
+	expect_error(glmpca(Y, L=2, fam = "poi"), "min(Y) >= 0 is not TRUE", 
+	             fixed = TRUE)
 	Y[2,] <- 0
 	expect_error(glmpca(Y, L=2, fam = "poi"), "Some rows were all zero,")
 })

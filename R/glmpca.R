@@ -144,7 +144,7 @@
 #' plot(factors[,1],factors[,2],col=clust,pch=19)
 #' 
 #' @seealso
-#' \code{\link[glmpca]{predict.glmpca}}, \code{\link{print.glmpca}},
+#' \code{\link[glmpca]{predict.glmpca}}, 
 #' \code{\link[stats]{prcomp}}, \code{\link[stats]{glm}},
 #' \code{\link[scry]{devianceFeatureSelection}}, 
 #' \code{\link[scry]{nullResiduals}}
@@ -162,7 +162,7 @@
 #' Multinomial Model. \emph{Genome Biology}
 #' \url{https://doi.org/10.1186/s13059-019-1861-6}
 #' 
-#' @import stats
+#' @importFrom methods is
 #' @export
 glmpca<-function(Y, L, fam=c("poi","nb","nb2","binom","mult","bern"), 
                    minibatch=c("none","stochastic","memoized"),
@@ -199,15 +199,16 @@ glmpca<-function(Y, L, fam=c("poi","nb","nb2","binom","mult","bern"),
     if(is.null(ctl$verbose)){ ctl$verbose<-dots$verbose }
   }
   
+  N<-ncol(Y); J<-nrow(Y)
   #sanity check inputs
   if(fam %in% c("poi","nb","nb2","binom")){ stopifnot(min(Y) >= 0) }
   if(!is.null(sz)){
     stopifnot(all(sz>0))
     if(fam=="binom"){
-      stopifnot(max(Y) <= max(sz))
+      #really this should be all(colMax(Y)<=sz), will fix later since rare
+      stopifnot(max(Y) <= max(sz)) 
     }
   }
-  N<-ncol(Y); J<-nrow(Y)
   
   ic<-init_ctl(N,fam,minibatch,optimizer,ctl)
   fam<-ic$fam; minibatch<-ic$minibatch; optimizer<-ic$optimizer; ctl<-ic$ctl
@@ -286,6 +287,7 @@ glmpca<-function(Y, L, fam=c("poi","nb","nb2","binom","mult","bern"),
   res
 }
 
+#' @importFrom utils tail
 print.glmpca<-function(fit,...){
   cat("GLM-PCA fit with", ncol(fit$factors), "latent factors")
   cat("\nnumber of observations:",nrow(fit$factors))
@@ -309,7 +311,7 @@ print.glmpca<-function(fit,...){
 #'   component analysis model object.
 #' @name predict.glmpca
 #' 
-#' @param fit a fitted object of class inheriting from \code{glmpca}.
+#' @param object a fitted object of class inheriting from \code{glmpca}.
 #' @param ... additional named arguments. Currently ignored.
 #' 
 #' @details Let \code{Y} be the data matrix originally used to estimate the
@@ -333,17 +335,22 @@ print.glmpca<-function(fit,...){
 #' \code{\link[stats]{predict.glm}} with \code{type='response'}
 #' 
 #' @export
-predict.glmpca<-function(fit,...){#output="matrix"){
+predict.glmpca<-function(object,...){#output="matrix"){
   #given a fitted glmpca object, return the fitted mean matrix
   #can be useful for imputation of noisy data
   #warning: will produce a dense matrix which can overwhelm memory for large
   #datasets
-  gf<-fit$glmpca_family
-  offsets<-fit$offsets
+  gf<-object$glmpca_family
+  offsets<-object$offsets
   binom_n<-gf$binom_n
   ilfunc<-gf$linkinv
-  U<-as.matrix(cbind(fit$X, fit$coefZ, fit$factors))
-  V<-as.matrix(cbind(fit$coefX, fit$Z, fit$loadings))
+  if(is.null(object$coefZ)){
+    U<-as.matrix(cbind(object$X, object$factors))
+    V<-as.matrix(cbind(object$coefX, object$loadings))
+  } else {
+    U<-as.matrix(cbind(object$X, object$coefZ, object$factors))
+    V<-as.matrix(cbind(object$coefX, object$Z, object$loadings))
+  }
   if(is.null(offsets) || all(offsets==0)){ #everything but poi, nb, nb2
     M<-ilfunc(tcrossprod(V,U))
   } else { #poi, nb, nb2

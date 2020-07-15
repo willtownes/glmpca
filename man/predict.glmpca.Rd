@@ -4,10 +4,10 @@
 \alias{predict.glmpca}
 \title{Predict Method for GLM-PCA Fits}
 \usage{
-\method{predict}{glmpca}(fit, ...)
+\method{predict}{glmpca}(object, ...)
 }
 \arguments{
-\item{fit}{a fitted object of class inheriting from \code{glmpca}.}
+\item{object}{a fitted object of class inheriting from \code{glmpca}.}
 
 \item{...}{additional named arguments. Currently ignored.}
 }

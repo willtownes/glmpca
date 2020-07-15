@@ -101,6 +101,7 @@ remove_intercept<-function(X){
   X[, colNorms(X)>1e-12, drop=FALSE]
 }
 
+#' @importFrom methods is
 glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
   #create the glmpca_family object and
   #initialize the A matrix (regression coefficients of X)
@@ -169,38 +170,12 @@ glmpca_init<-function(Y,fam,sz=NULL,nb_theta=NULL){
     rfunc<-function(U,V,offsets){ t(offsets+tcrossprod(U,V)) } 
   } else { #no offsets, eg fam 'binom' or gaussian
     #size factors are incorporated via binom fam object
-    rfunc<-function(U,V,offsets=NULL){ tcrossprod(V,U) }
+    rfunc<-function(U,V,offsets){ tcrossprod(V,U) }
   }
   list(gf=gf, rfunc=rfunc, intercepts=a1, offsets=offsets)
 }
 
-wlra<-function(Y,L,wts_row,wts_col,X=NULL,Z=NULL){
-  #represents the matrix Y with low rank approximation WH'
-  #where ncol(W)=ncol(H)=L and L is smaller than the dimensions of Y
-  #wts_row,wts_col are vectors of row and column weights
-  wr<-sqrt(wts_row); wc<-sqrt(wts_col)
-  Y<-wc*t(wr*Y) #this has dims of transposed Y
-  if(!is.null(X)){
-    fit<-lm.fit(X*wc,Y)
-    A<-t(coef(fit))/wr
-    Y<-t(residuals(fit))
-  } else {
-    A<-NULL
-    Y<-t(Y)
-  }
-  if(!is.null(Z)){
-    fit<-lm.fit(Z*wr,Y)
-    G<-t(coef(fit))/wc
-    Y<-residuals(fit)
-  } else {
-    G<-NULL
-  }
-  fit<-La.svd(Y, nu=L, nv=L)
-  V<-fit$u/wr
-  U<-t(fit$d[1:L]*fit$vt)/wc
-  list(A=A,G=G,U=U,V=V)
-}
-
+#' @importFrom stats rnorm
 uv_init<-function(N, J, L, a1, X=NULL, Z=NULL, 
                   init=list(factors=NULL, loadings=NULL)){
   #N: number of observations (columns) of data matrix
