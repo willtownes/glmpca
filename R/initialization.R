@@ -12,7 +12,7 @@ init_ctl<-function(N,fam,minibatch,optimizer,ctl){
   }
   if(is.null(ctl$verbose)){ ctl$verbose<-FALSE }
   if(is.null(ctl$minIter)){ 
-    ctl$minIter<-20 
+    ctl$minIter<-30 
   } else {
     stopifnot(ctl$minIter>=1)
   }

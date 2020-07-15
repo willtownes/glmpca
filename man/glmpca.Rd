@@ -32,7 +32,8 @@ overdispersion ('\code{nb}'), negative binomial with feature-specific
 overdispersion ('\code{nb2}'), or binomial ('\code{binom}'). Families 
 '\code{mult}' and '\code{bern}' are deprecated as both are special cases of
 '\code{binom}' with \code{sz} set to NULL and 1, respectively. They are 
-provided only for backward compatibility.}
+provided only for backward compatibility. Family '\code{nb2}' has not been
+thoroughly tested and is considered experimental.}
 
 \item{minibatch}{string describing whether gradients should be computed with
 all observations ('\code{none}', the default) or a subset of observations, 
@@ -149,7 +150,7 @@ The basic model is \eqn{R = AX'+ZG'+VU'}, where \eqn{E[Y] = M
       or learning rate? Default: 10.}
     \item{minIter}{Positive integer. Minimum number of iterations (full
       passes through the dataset) before checking for numerical convergence.
-      Default: 20.}
+      Default: 30.}
     \item{maxIter}{Positive integer. Maximum number of iterations. If
       numerical convergence is not achieved by this point, the results may
       not be reliable and a warning is issued. Default: 1000.}

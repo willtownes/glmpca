@@ -13,6 +13,7 @@
 # 4. For negative binomial family, the theta vector is stored under 'nb_theta'
 # 5. For binomial family, the size factors vector is stored under 'binom_n'. It can also be a scalar.
 
+#' @export
 print.glmpca_family <- function(x, ...){
   #based on print.family eg 
   #https://github.com/SurajGupta/r-source/blob/a28e609e72ed7c47f6ddfbb86c85279a0750f0b7/src/library/stats/R/family.R#L21

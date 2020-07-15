@@ -13,7 +13,8 @@
 #'   overdispersion ('\code{nb2}'), or binomial ('\code{binom}'). Families 
 #'   '\code{mult}' and '\code{bern}' are deprecated as both are special cases of
 #'   '\code{binom}' with \code{sz} set to NULL and 1, respectively. They are 
-#'   provided only for backward compatibility.
+#'   provided only for backward compatibility. Family '\code{nb2}' has not been
+#'   thoroughly tested and is considered experimental.
 #' @param minibatch string describing whether gradients should be computed with
 #'   all observations ('\code{none}', the default) or a subset of observations, 
 #'   which is useful for larger datasets. Option '\code{stochastic}' computes
@@ -75,7 +76,7 @@
 #'       or learning rate? Default: 10.}
 #'     \item{minIter}{Positive integer. Minimum number of iterations (full
 #'       passes through the dataset) before checking for numerical convergence.
-#'       Default: 20.}
+#'       Default: 30.}
 #'     \item{maxIter}{Positive integer. Maximum number of iterations. If
 #'       numerical convergence is not achieved by this point, the results may
 #'       not be reliable and a warning is issued. Default: 1000.}
@@ -289,22 +290,23 @@ glmpca<-function(Y, L, fam=c("poi","nb","nb2","binom","mult","bern"),
 }
 
 #' @importFrom utils tail
-print.glmpca<-function(fit,...){
-  cat("GLM-PCA fit with", ncol(fit$factors), "latent factors")
-  cat("\nnumber of observations:",nrow(fit$factors))
-  cat("\nnumber of features:",nrow(fit$loadings))
-  cat("\nfamily:",fit$glmpca_family$glmpca_fam)
-  cat("\nminibatch:",fit$minibatch)
-  cat("\noptimizer:",fit$optimizer)
-  if(fit$optimizer=="fisher"){
-    cat("\nl2 penalty:",fit$ctl$penalty)
+#' @export
+print.glmpca<-function(x,...){
+  cat("GLM-PCA fit with", ncol(x$factors), "latent factors")
+  cat("\nnumber of observations:",nrow(x$factors))
+  cat("\nnumber of features:",nrow(x$loadings))
+  cat("\nfamily:",x$glmpca_family$glmpca_fam)
+  cat("\nminibatch:",x$minibatch)
+  cat("\noptimizer:",x$optimizer)
+  if(x$optimizer=="fisher"){
+    cat("\nl2 penalty:",x$ctl$penalty)
   }
-  if(fit$optimizer=="avagrad"){
-    cat("\nlearning rate:",signif(fit$ctl$lr,3))
+  if(x$optimizer=="avagrad"){
+    cat("\nlearning rate:",signif(x$ctl$lr,3))
   }
-  dev_final<-format(tail(fit$dev,1),scientific=TRUE,digits=4)
+  dev_final<-format(tail(x$dev,1),scientific=TRUE,digits=4)
   cat("\nfinal deviance:",dev_final)
-  invisible(fit)
+  invisible(x)
 }
 
 #' @title Predict Method for GLM-PCA Fits
