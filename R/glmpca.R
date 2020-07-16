@@ -173,6 +173,9 @@ glmpca<-function(Y, L, fam=c("poi","nb","nb2","binom","mult","bern"),
                    init=list(factors=NULL, loadings=NULL), ...){
   #Y is a matrix-like object, must support the following operations:
   #min,max,as.matrix,sum,colSums,colMeans,rowSums,rowMeans,`[`
+  
+  #this line is purely for backward compatibility with scry v1.0.0 (bioc3.11)
+  if(length(fam)>1){ fam<-fam[1] }
   fam<-match.arg(fam)
   minibatch<-match.arg(minibatch)
   optimizer<-match.arg(optimizer)
