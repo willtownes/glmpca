@@ -8,10 +8,8 @@ Ubuntu Linux 16.04 "Xenial" (via travis-ci)
 * R 4.0.0 "release"
 * R 2020-07-15 r78860 "unstable development branch"
 
-Windows (via win-builder)
-* R
-* R
-* R
+Windows x86_64-w64-mingw32 (via win-builder)
+* R 3.6.3 "old release"
 
 ## R CMD check results
 There were no ERRORs, WARNINGs, or NOTEs
