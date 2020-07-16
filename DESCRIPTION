@@ -21,6 +21,7 @@ Suggests:
     covr,
     ggplot2,
     knitr,
+    logisticPCA,
     markdown,
     MASS,
     Matrix,
