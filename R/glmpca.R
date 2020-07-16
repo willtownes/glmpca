@@ -148,8 +148,8 @@
 #' \code{\link{predict.glmpca}}, 
 #' \code{\link[stats]{prcomp}}, \code{\link[stats]{glm}},
 #' \code{\link[logisticPCA]{logisticSVD}},
-#' \code{\link[scry]{devianceFeatureSelection}}, 
-#' \code{\link[scry]{nullResiduals}}
+#' \code{scry::devianceFeatureSelection}, 
+#' \code{scry::nullResiduals}
 #' 
 #' @references
 #' Savarese P, McAllester D, Babu S, and Maire M (2020).

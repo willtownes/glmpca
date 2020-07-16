@@ -196,6 +196,6 @@ Multinomial Model. \emph{Genome Biology}
 \code{\link{predict.glmpca}}, 
 \code{\link[stats]{prcomp}}, \code{\link[stats]{glm}},
 \code{\link[logisticPCA]{logisticSVD}},
-\code{\link[scry]{devianceFeatureSelection}}, 
-\code{\link[scry]{nullResiduals}}
+\code{scry::devianceFeatureSelection}, 
+\code{scry::nullResiduals}
 }

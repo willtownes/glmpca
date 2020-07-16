@@ -21,6 +21,7 @@ Suggests:
     covr,
     ggplot2,
     knitr,
+    markdown,
     MASS,
     Matrix,
     testthat,

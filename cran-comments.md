@@ -1,17 +1,17 @@
 ## Test environments
-* local OS X install, R 3.6.1
-* ubuntu 16.04 (on travis-ci), R 3.6.1
-* win-builder (devel and release)
+
+MacOS 10.15 "Catalina" (local install)
+* R 4.0.2
+
+Ubuntu Linux 16.04 "Xenial" (via travis-ci)
+* R 3.6.3 "old release"
+* R 4.0.0 "release"
+* R 2020-07-15 r78860 "unstable development branch"
+
+Windows (via win-builder)
+* R
+* R
+* R
 
 ## R CMD check results
-There were no ERRORs or WARNINGs
-
-There was 1 NOTE:
-* first time submission of package to CRAN
-
-## Resubmission
-This is a resubmission. In this version I have:
-
-* Fixed the codecov URL in README.md
-* Included references in the DESCRIPTION file
-* Added a small executable example in the Rd-file to illustrate the use of the exported function but also enable automatic testing.
+There were no ERRORs, WARNINGs, or NOTEs
