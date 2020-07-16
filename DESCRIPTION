@@ -14,6 +14,7 @@ License: LGPL (>= 3) | file LICENSE
 Depends:
     R (>= 3.5),
 Imports:
+    MASS,
     methods,
     stats,
     utils
@@ -23,7 +24,6 @@ Suggests:
     knitr,
     logisticPCA,
     markdown,
-    MASS,
     Matrix,
     testthat,
 URL: https://github.com/willtownes/glmpca

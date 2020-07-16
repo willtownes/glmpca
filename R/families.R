@@ -76,6 +76,7 @@ mat_binom_dev<-function(X,P,n){
 }
 
 #' @importFrom stats binomial poisson
+#' @importFrom MASS negative.binomial
 glmpca_family<-function(fam,binom_n=NULL,nb_theta=NULL){
   #binom_n a scalar or vector of total count params for binomial distribution
   #if binom_n is a vector, it is a binomial approx to multinomial (n=total count for each observation)
@@ -90,7 +91,7 @@ glmpca_family<-function(fam,binom_n=NULL,nb_theta=NULL){
     if(fam=="poi"){
       gf<-poisson(link="log")
     } else if(fam=="nb"){
-      gf<-MASS::negative.binomial(nb_theta, link="log")
+      gf<-negative.binomial(nb_theta, link="log")
       gf$nb_theta<-nb_theta
     } else if(fam=="nb2"){
       return(nb2_family(nb_theta)) #everything already handled by nb2_family function
