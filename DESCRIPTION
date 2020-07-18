@@ -28,6 +28,7 @@ Suggests:
     testthat,
 URL: https://github.com/willtownes/glmpca
 BugReports: https://github.com/willtownes/glmpca/issues
+Language: en-US
 VignetteBuilder: knitr
 LazyData: false
 RoxygenNote: 7.1.1

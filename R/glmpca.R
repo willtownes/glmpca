@@ -83,9 +83,9 @@
 #'     \item{tol}{Positive scalar. Relative tolerance for assessing convergence.
 #'       Convergence is determined by comparing the deviance at the previous
 #'       iteration to the current iteration. Default: 1e-4.}
-#'     \item{epsilon}{Positive scalar. Avagrad hyperparameter. See Savarese et 
+#'     \item{epsilon}{Positive scalar. AvaGrad hyperparameter. See Savarese et 
 #'       al (2020). Default: 0.1.}
-#'     \item{betas}{Numeric vector of length two. Avagrad hyperparameters. 
+#'     \item{betas}{Numeric vector of length two. AvaGrad hyperparameters. 
 #'       See Savarese et al (2020). Default: \code{c(0.9, 0.999)}.}
 #'     \item{minDev}{Scalar. Minimum deviance threshold at which optimization
 #'       is terminated. Useful for comparing different algorithms as it avoids
