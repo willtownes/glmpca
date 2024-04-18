@@ -44,6 +44,16 @@ For more details see the vignettes. For compatibility with Bioconductor, see
 For compatibility with Seurat objects, 
 see [Seurat-wrappers](https://github.com/satijalab/seurat-wrappers).
 
+## Alternative implementations
+
+GLM-PCA has been around for awhile and we have not been able to dedicate as much time to its maintenance and ongoing improvement as we would like. Fortunately, there are numerous alternative implementations that improve on our basic idea. Many of them are likely to be faster and more memory-efficient than our version, and some have interesting additional capabilities such as uncertainty quantification. In reverse chronological order, here are some packages to check out.
+
+* [fastglmpca](https://github.com/stephenslab/fastglmpca). Preprint:  [Weine, Carbonetto, & Stephens (2024)](https://doi.org/10.1101/2024.03.23.586420).
+* [scGBM](https://github.com/phillipnicol/scGBM). Preprint: [Nicol & Miller 2023](https://doi.org/10.1101/2023.04.21.537881).
+* [NewWave](https://bioconductor.org/packages/release/bioc/html/NewWave.html). Publication: [Agostinis et al 2022](https://doi.org/10.1093/bioinformatics/btac149).
+* [LDVAE](https://docs.scvi-tools.org/en/stable/user_guide/models/linearscvi.html). Publication: [Svensson et al 2020](https://doi.org/10.1093/bioinformatics/btaa169).
+
+
 ## Issues and bug reports
 
 Please use https://github.com/willtownes/glmpca/issues to submit issues, bug reports, and comments.
